@@ -1,0 +1,15 @@
+📌 About the Project
+
+SyntaxSquad is dedicated to building an innovative translation system aimed at improving accessibility and communication. Our current focus is on translating WASL (Word-Aligned Sign Language) to written text, assisting the deaf and hard-of-hearing community.
+
+🚀 Features
+	•	WASL-to-Text Translation
+	•	NLP-Powered Language Processing
+	•	Interactive User Interface
+	•	Real-Time Conversion
+
+🛠️ Tech Stack
+	•	Frontend: React, Ionic
+	•	Backend: Supabase, Node.js
+	•	Machine Learning: Python, NLP models
+	•	Project Management: Jira, Confluence
