@@ -1,4 +1,4 @@
-SyntaxSquad Project
+##SyntaxSquad Project
 
 📌 About the Project
 
