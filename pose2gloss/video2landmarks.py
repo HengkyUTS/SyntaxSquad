@@ -32,6 +32,7 @@ class VideoLandmarksExtractor:
             415, 454, 466, 468, 473]):
         """
         Initialize the VideoLandmarksExtractor with MediaPipe solutions for hands, pose, and face landmarks.
+        
         Args:
             min_detection_confidence (float): Minimum confidence for detection.
             min_tracking_confidence (float): Minimum confidence for tracking.
@@ -39,8 +40,6 @@ class VideoLandmarksExtractor:
             filtered_pose (list): List of pose landmarks to extract.
             filtered_face (list): List of face landmarks to extract.
         """
-
-
         # Landmarks to extract
         self.filtered_hand, self.hand_cnt = filtered_hand, len(filtered_hand)
         self.filtered_pose, self.pose_cnt = filtered_pose, len(filtered_pose)
@@ -63,13 +62,18 @@ class VideoLandmarksExtractor:
 
     def extract_video_landmarks(self, video_path, start_frame=1, end_frame=-1):
         """
-        Extract landmarks from a video with dynamic sampling and interpolation.
-        
+        This function extracts hand, pose, and face landmarks from a video file.
+        The landmarks are stored in a numpy array with shape (total_landmarks, 3) for each frame.
+        The function uses MediaPipe to process the video frames and extract the landmarks.
+        The landmarks are filtered based on the specified indices for hands, pose, and face.
+
         Args:
-            video_path (Path): Path to the video file.
+            video_path (str): Path to the input video file.
+            start_frame (int): Starting frame for processing.
+            end_frame (int): Ending frame for processing. If -1, process until the end of the video.
         
         Returns:
-            np.ndarray: Extracted landmarks for each frame.
+            np.ndarray: Landmarks for each frame with shape (num_frames, total_landmarks, 3).
         """
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -111,10 +115,16 @@ class VideoLandmarksExtractor:
 
     def extract_frame_landmarks(self, frame):
         """
-        Extract landmarks from a single frame using MediaPipe.
+        This function processes the frame to extract hand, pose, and face landmarks.
+        The landmarks are stored in a numpy array with shape (total_landmarks, 3).
+        The function uses MediaPipe to process the frame and extract the landmarks.
+        The landmarks are filtered based on the specified indices for hands, pose, and face.
+
+        Args:
+            frame (np.ndarray): The video frame.
         
         Returns:
-            np.ndarray: Landmarks for the current frame with shape (total_landmarks, 3).
+            np.ndarray: Landmarks for the frame with shape (total_landmarks, 3).
         """
         frame_landmarks = np.zeros((self.total_landmarks, 3), dtype=np.float32)
         results_hands = hands.process(frame)
