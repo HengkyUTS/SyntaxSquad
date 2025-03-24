@@ -1,6 +1,8 @@
 __pycache__/
+backup/
 wlasl-processed/
 wlasl2000-resized/
+*.mp4
 *.npy
 *.npz
 *.zip
