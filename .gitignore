@@ -1,2 +1,7 @@
-datasets/
+__pycache__/
+wlasl-processed/
+wlasl2000-resized/
+*.npy
+*.npz
+*.zip
 *.h5
