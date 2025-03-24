@@ -1,18 +1,16 @@
-import os
 import cv2
-import json
 import logging
+import mediapy
 import numpy as np
+import matplotlib.pyplot as plt
 import mediapipe as mp
-from tqdm import tqdm
-from pathlib import Path
-
+from concurrent.futures import ThreadPoolExecutor
 
 # Configure logging with file output
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(threadName)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler("data_preprocessing.log"), logging.StreamHandler()]
+    handlers=[logging.FileHandler('landmarks_extraction.log'), logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
@@ -32,7 +30,6 @@ class VideoLandmarksExtractor:
             415, 454, 466, 468, 473]):
         """
         Initialize the VideoLandmarksExtractor with MediaPipe solutions for hands, pose, and face landmarks.
-        
         Args:
             min_detection_confidence (float): Minimum confidence for detection.
             min_tracking_confidence (float): Minimum confidence for tracking.
@@ -55,23 +52,19 @@ class VideoLandmarksExtractor:
             static_image_mode = False, # Process video frames
             refine_landmarks = True # This will result in 478 landmarks instead of 468
         )
-        self.max_frames = max_frames
-        self.lock = threading.Lock() # Thread safety for holistic instance
-        logger.info("Initialized MediaPipe Holistic with advanced settings.")
+        logger.info("MediaPipe solutions initialized for hand, pose, and face landmarks.")
 
 
-    def extract_video_landmarks(self, video_path, start_frame=1, end_frame=-1):
+    def extract_video_landmarks(self, video_path, start_frame=1, end_frame=-1, use_adaptive_sampling=True):
         """
         This function extracts hand, pose, and face landmarks from a video file.
         The landmarks are stored in a numpy array with shape (total_landmarks, 3) for each frame.
         The function uses MediaPipe to process the video frames and extract the landmarks.
         The landmarks are filtered based on the specified indices for hands, pose, and face.
-
         Args:
             video_path (str): Path to the input video file.
             start_frame (int): Starting frame for processing.
             end_frame (int): Ending frame for processing. If -1, process until the end of the video.
-        
         Returns:
             np.ndarray: Landmarks for each frame with shape (num_frames, total_landmarks, 3).
         """
@@ -81,30 +74,31 @@ class VideoLandmarksExtractor:
             return None, None
 
         if start_frame <= 1: start_frame = 1 # If the starting is 0
-        elif start_frame > int(cap.get(cv2.CAP_PROP_FRAME_COUNT)): # If the video is precropped
+        elif start_frame > int(cap.get(cv2.CAP_PROP_FRAME_COUNT)): # If the starting frame > the total frames
             start_frame = 1
             end_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         if end_frame < 0: end_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) # If the final frame was not given (-1)
         all_frame_landmarks = np.zeros((end_frame - start_frame + 1, self.total_landmarks, 3))
-        frame_index, prev_frame = 0, None
+        frame_index, prev_frame = 1, None
         
         while cap.isOpened() and frame_index <= end_frame:
             ret, frame = cap.read()
             if not ret: break
-            frame_index += 1
 
-            # if prev_frame is not None: # Adaptive sampling based on motion
-            #     motion_score = self._compute_motion_score(prev_frame, frame)
-            #     if motion_score < 1.0: continue # Skip frames with low motion
+            if use_adaptive_sampling and prev_frame is not None: # Adaptive sampling based on motion
+                if self._compute_motion_score(prev_frame, frame) < 1.0: 
+                    frame_index += 1
+                    continue # Skip frames with low motion
 
             if frame_index >= start_frame:
                 frame.flags.writeable = False
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                with self.lock:
-                    frame_landmarks = self.extract_frame_landmarks(frame)
+                frame_landmarks = self.extract_frame_landmarks(frame)
                 all_frame_landmarks[frame_index - start_frame] = frame_landmarks
+                
             prev_frame = frame
+            frame_index += 1
         
         cap.release()
         self.mp_hands.reset()
@@ -119,46 +113,59 @@ class VideoLandmarksExtractor:
         The landmarks are stored in a numpy array with shape (total_landmarks, 3).
         The function uses MediaPipe to process the frame and extract the landmarks.
         The landmarks are filtered based on the specified indices for hands, pose, and face.
-
         Args:
             frame (np.ndarray): The video frame.
-        
         Returns:
             np.ndarray: Landmarks for the frame with shape (total_landmarks, 3).
         """
         frame_landmarks = np.zeros((self.total_landmarks, 3), dtype=np.float32)
-        results_hands = hands.process(frame)
-        results_pose = pose.process(frame)
-        results_face = face_mesh.process(frame)
         
         # Hands: 21 landmarks * 3 (x, y, z) * 2 (left and right) = 126 values
-        if results_hands.multi_hand_landmarks:
+        def get_hand_landmarks(frame):
+            results_hands = self.mp_hands.process(frame)
+            if not results_hands.multi_hand_landmarks: return
             for i, hand_landmarks in enumerate(results_hands.multi_hand_landmarks):
                 if results_hands.multi_handedness[i].classification[0].index == 0: 
-                    frame_landmarks[:HAND_NUM, :] = np.array([
+                    frame_landmarks[:self.hand_cnt, :] = np.array([
                         (lm.x, lm.y, lm.z) for lm in hand_landmarks.landmark
                     ])[self.filtered_hand] # Right hand
                 else: 
-                    frame_landmarks[HAND_NUM:HAND_NUM * 2, :] = np.array([
+                    frame_landmarks[self.hand_cnt:self.hand_cnt * 2, :] = np.array([
                         (lm.x, lm.y, lm.z) for lm in hand_landmarks.landmark
                     ])[self.filtered_hand] # Left hand
         
         # Pose: 6 upper body * 3 (x, y, z) = 18 values
-        if results_pose.pose_landmarks:
-            frame_landmarks[HAND_NUM * 2:HAND_NUM * 2 + POSE_NUM, :] = np.array([
+        def get_pose_landmarks(frame):
+            results_pose = self.mp_pose.process(frame)
+            if not results_pose.pose_landmarks: return
+            frame_landmarks[self.hand_cnt * 2:self.hand_cnt * 2 + self.pose_cnt, :] = np.array([
                 (lm.x, lm.y, lm.z) for lm in results_pose.pose_landmarks.landmark
             ])[self.filtered_pose]
 
         # Face: 132 landmarks * 3 (x, y, z) = 396 values
-        if results_face.multi_face_landmarks:
-            frame_landmarks[HAND_NUM * 2 + POSE_NUM:, :] = np.array([
+        def get_face_landmarks(frame):
+            results_face = self.mp_face.process(frame)
+            if not results_face.multi_face_landmarks: return
+            frame_landmarks[self.hand_cnt * 2 + self.pose_cnt:, :] = np.array([
                 (lm.x, lm.y, lm.z) for lm in results_face.multi_face_landmarks[0].landmark
             ])[self.filtered_face]
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            executor.submit(get_hand_landmarks, frame)
+            executor.submit(get_pose_landmarks, frame)
+            executor.submit(get_face_landmarks, frame)
         return frame_landmarks
 
 
     def _compute_motion_score(self, prev_frame: np.ndarray, curr_frame: np.ndarray) -> float:
-        # Calculate motion between frames for adaptive sampling
+        """
+        Compute the motion score between two frames using optical flow.
+        Args:
+            prev_frame (np.ndarray): The previous video frame.
+            curr_frame (np.ndarray): The current video frame.
+        Returns:
+            float: The motion score.
+        """
         prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
         curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
         flow = cv2.calcOpticalFlowFarneback(prev_gray, curr_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
@@ -170,7 +177,6 @@ class VideoLandmarksExtractor:
     def draw_frame_landmarks(frame, landmarks):
         """
         Draw landmarks on a single frame.
-        
         Args:
             frame (np.ndarray): The video frame.
             landmarks (np.ndarray): Landmarks to draw.
@@ -188,7 +194,6 @@ class VideoLandmarksExtractor:
     def draw_video_landmarks(video_path, output_path, video_landmarks, start_frame=1, end_frame=-1):
         """
         Draw landmarks on a video and save the output.
-        
         Args:
             video_path (str): Path to the input video.
             output_path (str): Path to save the output video with landmarks.
@@ -222,4 +227,4 @@ class VideoLandmarksExtractor:
 
         cap.release()
         out.release()
-        mediapy.show_video(media.read_video(output_path), height=500)
+        mediapy.show_video(mediapy.read_video(output_path), height=500)
