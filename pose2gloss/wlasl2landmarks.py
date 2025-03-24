@@ -5,7 +5,6 @@ import numpy as np
 
 from tqdm import tqdm
 from pathlib import Path
-from collections import Counter
 from IPython.display import clear_output
 from video2landmarks import VideoLandmarksExtractor
 
@@ -46,7 +45,6 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor):
             logger.info(f"Metadata file found at {self.metadata_path}. Loading existing metadata.")
             with open(self.metadata_path, 'r') as json_file:
                 self.parsed_metadata = json.load(json_file)
-                self.glosses_counts = dict(Counter(item['gloss'] for item in self.parsed_metadata).most_common())
                 logger.info(f'Loaded metadata with {len(self.parsed_metadata)} entries.')
         else:
             logger.info(f"Metadata file not found. Parsing WLASL metadata from {self.risangbaskoro_videos_dir / '../WLASL_v0.3.json'}")
@@ -72,7 +70,7 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor):
             raw_metadata = json.load(json_file)
             print('Total number of Glosses:', len(raw_metadata))
 
-        self.parsed_metadata, self.glosses_counts = [], {}
+        self.parsed_metadata = []
         for item in tqdm(raw_metadata):
             gloss = item['gloss'] if isinstance(item, dict) else item
             instances = item['instances'] if isinstance(item, dict) else []
@@ -85,7 +83,6 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor):
                     video_path = self.sttaseen_videos_dir / f'{video_id}.mp4' # Add missing videos from wlasl2000-resized
                 else: continue
 
-                self.glosses_counts[gloss] = self.glosses_counts.get(gloss, 0) + 1
                 self.parsed_metadata.append({
                     'video_id': video_id, # Unique identifier for the video
                     'gloss': gloss, # The word being expressed
