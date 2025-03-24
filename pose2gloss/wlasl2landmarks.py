@@ -138,5 +138,6 @@ if __name__ == "__main__":
         risangbaskoro_videos_dir='datasets/wlasl-processed/videos',
         sttaseen_videos_dir='datasets/wlasl2000-resized/wlasl-complete/videos',
         metadata_path='datasets/WLASL_parsed_metadata.json',
+        use_adaptive_sampling=False
     )
     extractor.extract_wlasl_landmarks(output_dir='datasets/WLASL_landmarks', final_npz_path='datasets/WLASL_landmarks.npz')

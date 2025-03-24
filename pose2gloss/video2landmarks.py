@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 class VideoLandmarksExtractor:
     def __init__(
-        self, min_detection_confidence: float = 0.7, min_tracking_confidence: float = 0.7,
+        self, use_adaptive_sampling=False, 
+        min_detection_confidence: float = 0.7, min_tracking_confidence: float = 0.7,
         filtered_hand=list(range(0, 21)), filtered_pose=list(range(11, 17)), filtered_face=[
             0, 4, 7, 8, 10, 13, 14, 17, 21, 33, 37, 39, 40, 46, 52, 53, 54, 55, 58,
             61, 63, 65, 66, 67, 70, 78, 80, 81, 82, 84, 87, 88, 91, 93, 95, 103, 105,
@@ -52,10 +53,11 @@ class VideoLandmarksExtractor:
             static_image_mode = False, # Process video frames
             refine_landmarks = True # This will result in 478 landmarks instead of 468
         )
+        self.use_adaptive_sampling = use_adaptive_sampling # Use adaptive sampling based on motion
         logger.info("MediaPipe solutions initialized for hand, pose, and face landmarks.")
 
 
-    def extract_video_landmarks(self, video_path, start_frame=1, end_frame=-1, use_adaptive_sampling=True):
+    def extract_video_landmarks(self, video_path, start_frame=1, end_frame=-1):
         """
         This function extracts hand, pose, and face landmarks from a video file.
         The landmarks are stored in a numpy array with shape (total_landmarks, 3) for each frame.
@@ -86,7 +88,7 @@ class VideoLandmarksExtractor:
             ret, frame = cap.read()
             if not ret: break
 
-            if use_adaptive_sampling and prev_frame is not None: # Adaptive sampling based on motion
+            if self.use_adaptive_sampling and prev_frame is not None: # Adaptive sampling based on motion
                 if self._compute_motion_score(prev_frame, frame) < 1.0: 
                     frame_index += 1
                     continue # Skip frames with low motion
@@ -174,16 +176,19 @@ class VideoLandmarksExtractor:
 
 
     @staticmethod
-    def draw_frame_landmarks(frame, landmarks):
+    def draw_frame_landmarks(frame, frame_landmarks, radius=5, color=(0, 255, 0), thickness=-1):
         """
         Draw landmarks on a single frame.
         Args:
             frame (np.ndarray): The video frame.
             landmarks (np.ndarray): Landmarks to draw.
+            radius (int): Radius of the circles to draw.
+            color (tuple): Color of the circles to draw.
+            thickness (int): Thickness of the circles to draw.
         """
-        for landmark in landmarks:
+        for landmark in frame_landmarks:
             x, y = int(landmark[0] * frame.shape[1]), int(landmark[1] * frame.shape[0])
-            cv2.circle(frame, (x, y), 3, (0, 255, 0), -1)
+            cv2.circle(frame, (x, y), radius, color, thickness)
 
         plt.imshow(frame[:, :, ::-1])
         plt.axis('off')
@@ -191,7 +196,7 @@ class VideoLandmarksExtractor:
 
 
     @staticmethod
-    def draw_video_landmarks(video_path, output_path, video_landmarks, start_frame=1, end_frame=-1):
+    def draw_video_landmarks(video_path, output_path, video_landmarks, start_frame=1, end_frame=-1, radius=5, color=(0, 255, 0), thickness=-1):
         """
         Draw landmarks on a video and save the output.
         Args:
@@ -200,6 +205,9 @@ class VideoLandmarksExtractor:
             video_landmarks (np.ndarray): Landmarks for each frame.
             start_frame (int): Starting frame for processing.
             end_frame (int): Ending frame for processing.
+            radius (int): Radius of the circles to draw.
+            color (tuple): Color of the circles to draw.
+            thickness (int): Thickness of the circles to draw.
         """
         cap = cv2.VideoCapture(video_path)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -220,7 +228,7 @@ class VideoLandmarksExtractor:
             if frame_index >= start_frame:
                 frame_landmarks = video_landmarks[frame_index - start_frame]
                 landmarks = [(int(x * width), int(y * height)) for x, y, _ in frame_landmarks]
-                for x, y in landmarks: cv2.circle(frame, (x, y), 3, (0, 0, 255), -1)
+                for x, y in landmarks: cv2.circle(frame, (x, y), radius, color, thickness)
                 out.write(frame)
             # else: out.write(frame) # Enable for full video
             frame_index += 1
