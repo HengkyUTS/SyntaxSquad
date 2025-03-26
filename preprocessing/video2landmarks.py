@@ -45,14 +45,35 @@ class VideoLandmarksExtractor:
         self.total_landmarks = self.hand_cnt * 2 + self.pose_cnt + self.face_cnt
         
         # Initialize MediaPipe solutions
-        self.mp_hands = mp.solutions.hands.Hands()
-        self.mp_pose = mp.solutions.pose.Pose()
+        self.mp_hands = mp.solutions.hands.Hands(
+            max_num_hands=2, # Only 2 hands are detected
+            min_detection_confidence=min_detection_confidence,
+            min_tracking_confidence=min_tracking_confidence,
+            static_image_mode=False, # Process video frames
+        )
+        self.mp_pose = mp.solutions.pose.Pose(
+            min_detection_confidence=min_detection_confidence,
+            min_tracking_confidence=min_tracking_confidence,
+            static_image_mode=False, # Process video frames
+            model_complexity=1 # Use the full pose model for better accuracy
+        )
         self.mp_face = mp.solutions.face_mesh.FaceMesh(
+            max_num_faces=1, # Only 1 face is detected
             min_detection_confidence = min_detection_confidence,
             min_tracking_confidence = min_tracking_confidence,
             static_image_mode = False, # Process video frames
             refine_landmarks = True # This will result in 478 landmarks instead of 468
         )
+
+        # Drawing utilities for MediaPipe
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.mp_drawing_styles = mp.solutions.drawing_styles
+        self.hand_connections = mp.solutions.hands.HAND_CONNECTIONS
+        self.pose_connections = mp.solutions.pose.POSE_CONNECTIONS
+        self.face_connections = mp.solutions.face_mesh.FACEMESH_TESSELATION
+        self.face_contours = mp.solutions.face_mesh.FACEMESH_CONTOURS
+        self.face_irises = mp.solutions.face_mesh.FACEMESH_IRISES
+
         self.use_adaptive_sampling = use_adaptive_sampling # Use adaptive sampling based on motion
         logger.info("MediaPipe solutions initialized for hand, pose, and face landmarks.")
 
@@ -85,8 +106,8 @@ class VideoLandmarksExtractor:
         frame_index, prev_frame = 1, None
         
         while cap.isOpened() and frame_index <= end_frame:
-            ret, frame = cap.read()
-            if not ret: break
+            success, frame = cap.read()
+            if not success: break
 
             if self.use_adaptive_sampling and prev_frame is not None: # Adaptive sampling based on motion
                 if self._compute_motion_score(prev_frame, frame) < 1.0: 
@@ -109,7 +130,7 @@ class VideoLandmarksExtractor:
         return all_frame_landmarks
 
 
-    def extract_frame_landmarks(self, frame):
+    def extract_frame_landmarks(self, frame, return_mp_results=False):
         """
         This function processes the frame to extract hand, pose, and face landmarks.
         The landmarks are stored in a numpy array with shape (total_landmarks, 3).
@@ -123,7 +144,7 @@ class VideoLandmarksExtractor:
         frame_landmarks = np.zeros((self.total_landmarks, 3), dtype=np.float32)
         
         # Hands: 21 landmarks * 3 (x, y, z) * 2 (left and right) = 126 values
-        def get_hand_landmarks(frame):
+        def get_hands_landmarks(frame):
             results_hands = self.mp_hands.process(frame)
             if not results_hands.multi_hand_landmarks: return
             for i, hand_landmarks in enumerate(results_hands.multi_hand_landmarks):
@@ -135,6 +156,7 @@ class VideoLandmarksExtractor:
                     frame_landmarks[self.hand_cnt:self.hand_cnt * 2, :] = np.array([
                         (lm.x, lm.y, lm.z) for lm in hand_landmarks.landmark
                     ])[self.filtered_hand] # Left hand
+            return results_hands
         
         # Pose: 6 upper body * 3 (x, y, z) = 18 values
         def get_pose_landmarks(frame):
@@ -143,6 +165,7 @@ class VideoLandmarksExtractor:
             frame_landmarks[self.hand_cnt * 2:self.hand_cnt * 2 + self.pose_cnt, :] = np.array([
                 (lm.x, lm.y, lm.z) for lm in results_pose.pose_landmarks.landmark
             ])[self.filtered_pose]
+            return results_pose
 
         # Face: 132 landmarks * 3 (x, y, z) = 396 values
         def get_face_landmarks(frame):
@@ -151,13 +174,16 @@ class VideoLandmarksExtractor:
             frame_landmarks[self.hand_cnt * 2 + self.pose_cnt:, :] = np.array([
                 (lm.x, lm.y, lm.z) for lm in results_face.multi_face_landmarks[0].landmark
             ])[self.filtered_face]
+            return results_face
 
         with ThreadPoolExecutor(max_workers=3) as executor:
-            executor.submit(get_hand_landmarks, frame)
-            executor.submit(get_pose_landmarks, frame)
-            executor.submit(get_face_landmarks, frame)
-        return frame_landmarks
+            future_hands = executor.submit(get_hands_landmarks, frame)
+            future_pose = executor.submit(get_pose_landmarks, frame)
+            future_face = executor.submit(get_face_landmarks, frame)
 
+        if not return_mp_results: return frame_landmarks
+        return frame_landmarks, future_hands.result(), future_pose.result(), future_face.result()
+        
 
     def _compute_motion_score(self, prev_frame: np.ndarray, curr_frame: np.ndarray) -> float:
         """
@@ -223,8 +249,8 @@ class VideoLandmarksExtractor:
             
         frame_index = 1
         while cap.isOpened() and frame_index <= end_frame:
-            ret, frame = cap.read()
-            if not ret: break
+            success, frame = cap.read()
+            if not success: break
             if frame_index >= start_frame:
                 frame_landmarks = video_landmarks[frame_index - start_frame]
                 landmarks = [(int(x * width), int(y * height)) for x, y, _ in frame_landmarks]
@@ -236,3 +262,56 @@ class VideoLandmarksExtractor:
         cap.release()
         out.release()
         mediapy.show_video(mediapy.read_video(output_path), height=500)
+
+
+    def live_extraction(self, draw_landmarks=True):
+        cap = cv2.VideoCapture(0)
+        while cap.isOpened():
+            success, image = cap.read()
+            if not success: break
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image.flags.writeable = False
+            outputs = self.extract_frame_landmarks(image, return_mp_results=draw_landmarks)
+            if draw_landmarks:
+                frame_landmarks, mp_results_hands, mp_results_pose, mp_results_face = outputs
+            else: 
+                frame_landmarks = outputs
+                mp_results_hands, mp_results_pose, mp_results_face = None, None, None
+            
+            print(f'Extracted landmarks for the model: {frame_landmarks}')
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+            if draw_landmarks:
+                if mp_results_hands and mp_results_hands.multi_hand_landmarks:
+                    for hand_landmarks in mp_results_hands.multi_hand_landmarks:
+                        self.mp_drawing.draw_landmarks(
+                            image, hand_landmarks, self.hand_connections,
+                            landmark_drawing_spec=self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                            connection_drawing_spec=self.mp_drawing_styles.get_default_hand_connections_style())
+                        
+                if mp_results_pose and mp_results_pose.pose_landmarks:
+                    self.mp_drawing.draw_landmarks(
+                        image, mp_results_pose.pose_landmarks, self.pose_connections,
+                        landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
+                    
+                if mp_results_face and mp_results_face.multi_face_landmarks:
+                    for face_landmarks in mp_results_face.multi_face_landmarks:
+                        self.mp_drawing.draw_landmarks(
+                            image, face_landmarks, self.face_connections, landmark_drawing_spec=None,
+                            connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style())
+                        self.mp_drawing.draw_landmarks(
+                            image, face_landmarks, self.face_contours, landmark_drawing_spec=None,
+                            connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_contours_style())
+                        self.mp_drawing.draw_landmarks(
+                            image, face_landmarks, self.face_irises, landmark_drawing_spec=None,
+                            connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_iris_connections_style())
+            
+            cv2.imshow('MediaPipe Landmarks', cv2.flip(image, 1))
+            if cv2.waitKey(5) & 0xFF == ord('q'): break
+
+        cap.release()
+        cv2.destroyAllWindows()
+        self.mp_hands.reset()
+        self.mp_pose.reset()
+        self.mp_face.reset()
