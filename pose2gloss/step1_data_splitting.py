@@ -38,20 +38,19 @@ plt.figure(figsize=(15, 5))
 plt.subplot(1, 2, 1)
 plt.bar(glosses, counts)
 plt.ylabel('Count')
-plt.title('Top 20 Glosses')
 plt.xticks(rotation=45)
 
 plt.subplot(1, 2, 2)
 plt.hist(counts, edgecolor='black')
 plt.ylabel('Frequency')
 plt.tight_layout()
-task.logger.report_matplotlib_figure(figure=plt, title='Distribution of Gloss', series='Glosses')
+task.logger.report_matplotlib_figure(figure=plt, title=f'Top {top_n} Distribution', series='Glosses')
 
 wordcloud = WordCloud(width=1000, height=500, background_color='white').generate_from_frequencies(glosses_counts)
 plt.figure(figsize=(10, 5))
 plt.imshow(wordcloud, interpolation='bilinear')
 plt.axis('off')
-task.logger.report_matplotlib_figure(figure=plt, title='Word Cloud of Glosses', series='Glosses')
+task.logger.report_matplotlib_figure(figure=plt, title='Word Cloud', series='Glosses')
 
 
 # Splitting the dataset into train, validation, and test sets
@@ -134,7 +133,7 @@ detailed_stats = combined_details.groupby('Subset').agg({'Video Length': ['mean'
 # Merge high-level and detailed statistics
 detailed_stats.columns = ['Subset'] + [f"{col[0]} ({col[1]})" for col in detailed_stats.columns[1:]]
 final_stats = pd.merge(subset_summary, detailed_stats, on='Subset')
-task.logger.report_table(title='Dataset Statistics', series='Statistics', table_plot=final_stats)
+task.logger.report_table(table_plot=final_stats, title='Dataset Statistics', series='Statistics')
 
 # Visualize the statistics
 fig = px.histogram(combined_details, x='Video Length', color='Subset', barmode='overlay', nbins=20)
