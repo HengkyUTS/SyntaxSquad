@@ -131,6 +131,7 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
                     saved_data = {**item, 'landmarks': video_landmarks}
                     np.save(npy_path, saved_data)
                     dataset.add_files(npy_path, recursive=False)
+                    dataset.upload(show_progress=True, verbose=True)
                     landmarks_dict[video_path.stem] = saved_data
                     print(f'Saved landmarks to {npy_path}')
             except Exception as e:
@@ -140,6 +141,7 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
 
         np.savez_compressed(self.wlasl_path / 'WLASL_landmarks.npz', **landmarks_dict)
         dataset.add_files(self.wlasl_path / 'WLASL_landmarks.npz', recursive=False)
+        dataset.remove_files(output_dir / '*.npy', recursive=True) # Remove the temporary directory from the dataset
         dataset.upload(show_progress=True, verbose=True)
         dataset.finalize(verbose=True)
         print(f"Dataset '{dataset.name}' expanded from '{self.clearml_raw_dataset.id}' and uploaded successfully with ID: {dataset.id}")
