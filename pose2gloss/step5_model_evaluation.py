@@ -1,4 +1,6 @@
 from tensorflow.keras.optimizers import AdamW
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
 from model_utils import build_GISLR, prepare_tf_dataset
 from clearml import Task
 
@@ -30,7 +32,11 @@ model = build_GISLR(
     pad_value=args['pad_value'], conv1d_dropout=args['conv1d_dropout'], 
     last_dropout=args['last_dropout'], is_training=False,
 )
-model.compile(optimizer=AdamW(learning_rate=args['learning_rate']))
+model.compile(
+    optimizer=AdamW(learning_rate=args['learning_rate']),
+    loss=SparseCategoricalCrossentropy(from_logits=True),
+    metrics=['accuracy', SparseTopKCategoricalAccuracy(k=5, name='top5_accuracy')],
+)
 model.summary()
 
 # Load the model from the previous task and evaluate it
