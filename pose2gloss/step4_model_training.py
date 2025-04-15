@@ -11,7 +11,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from clearml import Task, OutputModel
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='Model_Training', task_type=Task.TaskTypes.optimizer)
+task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training)
 args = {
     'data_transformation_task_id': '775f62600cb64fd0bae2404a31084177',
     'max_frames': 195,
@@ -39,7 +39,7 @@ if args['use_mixed_precision']:
     try: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_float16'))
     except: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_bfloat16'))
 
-
+# Define model components
 class EfficientChannelAttention(tf.keras.layers.Layer):
     def __init__(self, kernel_size=5, **kwargs):
         super().__init__(**kwargs)
@@ -163,6 +163,7 @@ X_val, y_val = data_transformation_task.artifacts['X_val'].get(), data_transform
 train_tf_dataset = prepare_tf_dataset(X_train, y_train, batch_size=args['batch_size'], shuffle=True)
 val_tf_dataset = prepare_tf_dataset(X_val, y_val, batch_size=args['batch_size'], shuffle=False)
 
+# Build and compile the model
 model = build_GISLR(
     args['max_frames'], num_landmarks=args['num_landmarks'], num_glosses=args['num_glosses'], 
     pad_value=args['pad_value'], conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'],
@@ -172,8 +173,9 @@ model.compile(
     loss=SparseCategoricalCrossentropy(from_logits=True),
     metrics=['accuracy', SparseTopKCategoricalAccuracy(k=5, name='top5_accuracy')],
 )
-print(model.summary())
+model.summary()
 
+# Train the model
 history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks = [
     ModelCheckpoint(args['model_file_name'], monitor='val_accuracy', mode='max', save_best_only=True),
     ReduceLROnPlateau(
@@ -185,8 +187,9 @@ history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks 
     )
 ], epochs=args['epochs'], verbose=1).history
 
+# Save the model and training history
 output_model = OutputModel(task=task)
 output_model.update_weights(args['model_file_name'], upload_uri='https://files.clear.ml')
 output_model.publish()
 task.upload_artifact('trained_model', artifact_object=args['model_file_name'])
-task.upload_artifact('training_history', artifact_object=args['training_history'])
+task.upload_artifact('training_history', artifact_object=history)
