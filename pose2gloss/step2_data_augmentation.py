@@ -111,8 +111,7 @@ def augment(X, y, num=None):
             y_aug.append(y[i])
     return X_aug, y_aug
 
-
-data_splitting_task = Task.get_task(task_id=task.get_parameter('data_splitting_task_id'))
+data_splitting_task = Task.get_task(task_id=task.get_parameter('General/data_splitting_task_id'))
 X_train = data_splitting_task.artifacts['X_train'].get()
 y_train = data_splitting_task.artifacts['y_train'].get()
 X_train, y_train = augment(X_train, y_train, num=1)
