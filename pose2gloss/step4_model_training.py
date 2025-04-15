@@ -1,3 +1,4 @@
+import warnings
 import tensorflow as tf
 import tensorflow.keras.mixed_precision as mixed_precision
 from tensorflow.keras.layers import (
@@ -11,7 +12,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from clearml import Task, OutputModel
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training, auto_connect_frameworks='keras')
+task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training)
 args = {
     'data_transformation_task_id': '775f62600cb64fd0bae2404a31084177',
     'max_frames': 195,
@@ -30,8 +31,11 @@ args = {
 }
 task.connect(args)
 task.execute_remotely()
+warnings.filterwarnings('ignore')
+tf.get_logger().setLevel('ERROR')
 
 
+# Set GPU memory growth to avoid OOM errors
 if tf.config.list_physical_devices('GPU'):
     physical_devices = tf.config.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -39,6 +43,11 @@ if tf.config.list_physical_devices('GPU'):
 # else: raise ValueError('Running on CPU is not recommended.')
 else: print('Running on CPU')
 
+# Mixed precision training
+try: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_float16'))
+except: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_bfloat16'))
+tf.keras.backend.clear_session()
+tf.config.optimizer.set_jit(True)
 
 # Define model components
 class EfficientChannelAttention(tf.keras.layers.Layer):
@@ -123,7 +132,7 @@ def build_GISLR(
     x = Reshape((max_frames, num_landmarks * 3))(inputs)
 
     if is_training: x = Masking(mask_value=pad_value)(x)
-    x = Dense(dim, use_bias=False,name='stem_conv')(x)
+    x = Dense(dim, use_bias=False, name='stem_conv')(x)
     x = BatchNormalization(momentum=0.95)(x)
     x = Conv1DTransformerBlock(x, dim, kernel_size, conv1d_dropout)
     x = Dense(dim * 2, activation=None, name='top_conv')(x)
@@ -163,11 +172,6 @@ X_train, y_train = data_transformation_task.artifacts['X_train'].get(), data_tra
 X_val, y_val = data_transformation_task.artifacts['X_val'].get(), data_transformation_task.artifacts['y_val'].get()
 train_tf_dataset = prepare_tf_dataset(X_train, y_train, batch_size=args['batch_size'], shuffle=True)
 val_tf_dataset = prepare_tf_dataset(X_val, y_val, batch_size=args['batch_size'], shuffle=False)
-
-try: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_float16'))
-except: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_bfloat16'))
-tf.keras.backend.clear_session()
-tf.config.optimizer.set_jit(True)
 
 # Build and compile the model
 model = build_GISLR(
