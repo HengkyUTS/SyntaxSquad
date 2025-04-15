@@ -4,6 +4,7 @@ from tensorflow.keras.layers import (
     MultiHeadAttention, Reshape, Add, Masking, GlobalAveragePooling1D
 )
 
+
 class EfficientChannelAttention(tf.keras.layers.Layer):
     def __init__(self, kernel_size=5, **kwargs):
         super().__init__(**kwargs)

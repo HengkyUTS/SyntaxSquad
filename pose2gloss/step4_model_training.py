@@ -3,7 +3,7 @@ import tensorflow.keras.mixed_precision as mixed_precision
 from tensorflow.keras.optimizers import AdamW
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
-from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback
 from clearml import Task, OutputModel
 from model_utils import build_GISLR, prepare_tf_dataset
 
@@ -20,7 +20,7 @@ args = {
     'learning_rate': 0.001,
     'conv1d_dropout': 0.2,
     'last_dropout': 0.2,
-    'model_file_name': 'wlasl100.h5',
+    'weights_name': 'wlasl100.h5',
     'reduce_lr_patience': 5,
     'reduce_lr_min_lr': 1e-6,
     'reduce_lr_factor': 0.7,
@@ -63,18 +63,26 @@ model.summary()
 
 # Train the model
 history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks = [
-    ModelCheckpoint(args['model_file_name'], monitor='val_accuracy', mode='max', save_best_only=True),
+    ModelCheckpoint(args['weights_name'], monitor='val_accuracy', mode='max', save_best_only=True),
     ReduceLROnPlateau(
         monitor = 'val_accuracy', mode = 'max',
         patience = args['reduce_lr_patience'], # Reduce if no improvement after 5 epochs
         min_lr = args['reduce_lr_min_lr'], # Lower bound on the learning rate
         factor = args['reduce_lr_factor'], # => new_lr = lr * factor
         verbose = 1
-    )
+    ),
+    LambdaCallback(on_epoch_end=lambda epoch, logs: [
+        task.logger.report_scalar(title='Training Loss', value=logs['loss'], iteration=epoch),
+        task.logger.report_scalar(title='Validation Loss', value=logs['val_loss'], iteration=epoch),
+        task.logger.report_scalar(title='Training Accuracy', value=logs['accuracy'], iteration=epoch),
+        task.logger.report_scalar(title='Validation Accuracy', value=logs['val_accuracy'], iteration=epoch),
+        task.logger.report_scalar(title='Top 5 Accuracy', value=logs['top5_accuracy'], iteration=epoch),
+        task.logger.report_scalar(title='Top 5 Validation Accuracy', value=logs['val_top5_accuracy'], iteration=epoch)
+    ]),
 ], epochs=args['epochs'], verbose=1).history
 
 # Save the model and training history
 output_model = OutputModel(task=task)
-output_model.update_weights(args['model_file_name'], upload_uri='https://files.clear.ml')
+output_model.update_weights(args['weights_name'], upload_uri='https://files.clear.ml')
 output_model.publish()
 task.upload_artifact('training_history', artifact_object=history)
