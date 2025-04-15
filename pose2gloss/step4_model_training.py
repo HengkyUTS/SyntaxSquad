@@ -33,12 +33,6 @@ task.connect(args)
 task.execute_remotely()
 
 
-tf.keras.backend.clear_session()
-tf.config.optimizer.set_jit(True)
-if args['use_mixed_precision']:
-    try: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_float16'))
-    except: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_bfloat16'))
-
 # Define model components
 class EfficientChannelAttention(tf.keras.layers.Layer):
     def __init__(self, kernel_size=5, **kwargs):
@@ -162,6 +156,12 @@ X_train, y_train = data_transformation_task.artifacts['X_train'].get(), data_tra
 X_val, y_val = data_transformation_task.artifacts['X_val'].get(), data_transformation_task.artifacts['y_val'].get()
 train_tf_dataset = prepare_tf_dataset(X_train, y_train, batch_size=args['batch_size'], shuffle=True)
 val_tf_dataset = prepare_tf_dataset(X_val, y_val, batch_size=args['batch_size'], shuffle=False)
+
+# if args['use_mixed_precision']:
+try: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_float16'))
+except: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_bfloat16'))
+tf.keras.backend.clear_session()
+tf.config.optimizer.set_jit(True)
 
 # Build and compile the model
 model = build_GISLR(
