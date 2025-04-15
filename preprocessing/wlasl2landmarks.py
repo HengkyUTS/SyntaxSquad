@@ -127,13 +127,12 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
             try:
                 video_landmarks = self.extract_video_landmarks(video_path, start, end)
                 if video_landmarks is not None:
-                    npy_path = output_dir / f'{video_path.stem}.npy'
                     saved_data = {**item, 'landmarks': video_landmarks}
-                    np.save(npy_path, saved_data)
-                    dataset.add_files(npy_path, recursive=False)
-                    dataset.upload(show_progress=True, verbose=True)
                     landmarks_dict[video_path.stem] = saved_data
-                    print(f'Saved landmarks to {npy_path}')
+
+                    # npy_path = output_dir / f'{video_path.stem}.npy'
+                    # np.save(npy_path, saved_data)
+                    # print(f'Saved landmarks to {npy_path}')
             except Exception as e:
                 print(f"Error processing {video_path}: {e}")
                 continue
@@ -141,12 +140,11 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
 
         np.savez_compressed(self.wlasl_path / 'WLASL_landmarks.npz', **landmarks_dict)
         dataset.add_files(self.wlasl_path / 'WLASL_landmarks.npz', recursive=False)
-        dataset.remove_files(output_dir / '*.npy', recursive=True) # Remove the temporary directory from the dataset
         dataset.upload(show_progress=True, verbose=True)
         dataset.finalize(verbose=True)
         print(f"Dataset '{dataset.name}' expanded from '{self.clearml_raw_dataset.id}' and uploaded successfully with ID: {dataset.id}")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     extractor = WLASLLandmarksExtractor(clearml_raw_dataset_id='921fdb13ed94464ebcf0dd0586856a5c')
     extractor.extract_wlasl_landmarks()
