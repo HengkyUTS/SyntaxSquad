@@ -11,7 +11,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from clearml import Task, OutputModel
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training)
+task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training, auto_connect_frameworks='keras')
 args = {
     'data_transformation_task_id': '775f62600cb64fd0bae2404a31084177',
     'max_frames': 195,
@@ -27,10 +27,17 @@ args = {
     'reduce_lr_patience': 5,
     'reduce_lr_min_lr': 1e-6,
     'reduce_lr_factor': 0.7,
-    'use_mixed_precision': True,
 }
 task.connect(args)
 task.execute_remotely()
+
+
+if tf.config.list_physical_devices('GPU'):
+    physical_devices = tf.config.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    print('Using GPU:', tf.test.gpu_device_name())
+# else: raise ValueError('Running on CPU is not recommended.')
+else: print('Running on CPU')
 
 
 # Define model components
@@ -157,7 +164,6 @@ X_val, y_val = data_transformation_task.artifacts['X_val'].get(), data_transform
 train_tf_dataset = prepare_tf_dataset(X_train, y_train, batch_size=args['batch_size'], shuffle=True)
 val_tf_dataset = prepare_tf_dataset(X_val, y_val, batch_size=args['batch_size'], shuffle=False)
 
-# if args['use_mixed_precision']:
 try: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_float16'))
 except: mixed_precision.set_global_policy(mixed_precision.Policy('mixed_bfloat16'))
 tf.keras.backend.clear_session()
