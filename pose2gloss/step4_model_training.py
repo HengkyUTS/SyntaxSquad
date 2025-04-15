@@ -72,12 +72,12 @@ history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks 
         verbose = 1
     ),
     LambdaCallback(on_epoch_end=lambda epoch, logs: [
-        task.logger.report_scalar(title='Training Loss', value=logs['loss'], iteration=epoch, series='train'),
-        task.logger.report_scalar(title='Validation Loss', value=logs['val_loss'], iteration=epoch, series='val'),
-        task.logger.report_scalar(title='Training Accuracy', value=logs['accuracy'], iteration=epoch, series='train'),
-        task.logger.report_scalar(title='Validation Accuracy', value=logs['val_accuracy'], iteration=epoch, series='val'),
-        task.logger.report_scalar(title='Top 5 Accuracy', value=logs['top5_accuracy'], iteration=epoch, series='train'),
-        task.logger.report_scalar(title='Top 5 Validation Accuracy', value=logs['val_top5_accuracy'], iteration=epoch, series='val'),
+        task.logger.report_scalar(title='Loss', value=logs['loss'], iteration=epoch, series='Training'),
+        task.logger.report_scalar(title='Loss', value=logs['val_loss'], iteration=epoch, series='Validation'),
+        task.logger.report_scalar(title='Accuracy', value=logs['accuracy'], iteration=epoch, series='Training'),
+        task.logger.report_scalar(title='Accuracy', value=logs['val_accuracy'], iteration=epoch, series='Validation'),
+        task.logger.report_scalar(title='Top 5 Accuracy', value=logs['top5_accuracy'], iteration=epoch, series='Training'),
+        task.logger.report_scalar(title='Top 5 Accuracy', value=logs['val_top5_accuracy'], iteration=epoch, series='Validation'),
     ]),
 ], epochs=args['epochs'], verbose=1).history
 
