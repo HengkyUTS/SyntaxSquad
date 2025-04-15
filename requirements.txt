@@ -1,0 +1,15 @@
+clearml==1.18.0
+ipython==8.12.3
+matplotlib==3.8.0
+mediapipe==0.10.7
+mediapy==1.2.2
+numpy==1.26.4
+opencv_contrib_python==4.11.0.86
+opencv_python==4.11.0.86
+opencv_python_headless==4.11.0.86
+pandas==2.2.3
+plotly==5.19.0
+scikit_learn==1.2.2
+tensorflow==2.16.1
+tqdm==4.65.0
+wordcloud==1.9.4
