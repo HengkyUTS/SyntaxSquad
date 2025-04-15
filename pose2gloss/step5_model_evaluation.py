@@ -11,6 +11,8 @@ args = {
     'num_landmarks': 180,
     'num_glosses': 100,
     'batch_size': 128,
+    'conv1d_dropout': 0.2,
+    'last_dropout': 0.2,
 }
 task.connect(args)
 task.execute_remotely()
@@ -20,7 +22,7 @@ data_transformation_task = Task.get_task(task_id=args['data_transformation_task_
 X_test, y_test = data_transformation_task.artifacts['X_train'].get(), data_transformation_task.artifacts['y_train'].get()
 test_tf_dataset = prepare_tf_dataset(X_test, y_test, batch_size=args['batch_size'], shuffle=True)
 
-# Load the model from the previous task
+# Load the model from the previous task and evaluate it
 model_training_task = Task.get_task(task_id=args['model_training_task_id'])
 weights_path = model_training_task.models['output'][-1].get_local_copy() # Last snapshot
 model = build_GISLR(
@@ -28,5 +30,6 @@ model = build_GISLR(
     pad_value=args['pad_value'], conv1d_dropout=args['conv1d_dropout'], 
     last_dropout=args['last_dropout'], is_training=False,
 )
+model.summary()
 model.load_weights(weights_path)
 model.evaluate(test_tf_dataset, batch_size=args['batch_size'], verbose=1)
