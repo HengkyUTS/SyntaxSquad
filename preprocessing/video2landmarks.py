@@ -1,18 +1,9 @@
 import cv2
-import logging
 import mediapy
 import numpy as np
 import matplotlib.pyplot as plt
 import mediapipe as mp
 from concurrent.futures import ThreadPoolExecutor
-
-# Configure logging with file output
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(threadName)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('landmarks_extraction.log'), logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
 
 
 class VideoLandmarksExtractor:
@@ -75,7 +66,7 @@ class VideoLandmarksExtractor:
         self.face_irises = mp.solutions.face_mesh.FACEMESH_IRISES
 
         self.use_adaptive_sampling = use_adaptive_sampling # Use adaptive sampling based on motion
-        logger.info("MediaPipe solutions initialized for hand, pose, and face landmarks.")
+        print('MediaPipe solutions initialized for hand, pose, and face landmarks.')
 
 
     def extract_video_landmarks(self, video_path, start_frame=1, end_frame=-1):
@@ -93,7 +84,7 @@ class VideoLandmarksExtractor:
         """
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            logger.error(f'Failed to open video: {video_path}')
+            print(f'Failed to open video: {video_path}')
             return None, None
 
         if start_frame <= 1: start_frame = 1 # If the starting is 0
