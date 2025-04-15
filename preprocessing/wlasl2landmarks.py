@@ -1,54 +1,67 @@
 import os
 import json
-import logging
 import numpy as np
-
 from tqdm import tqdm
 from pathlib import Path
 from IPython.display import clear_output
 from video2landmarks import VideoLandmarksExtractor
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('landmarks_extraction.log'), logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
+from clearml import Task, Dataset
 
 
-class WLASLLandmarksExtractor(VideoLandmarksExtractor):
-    def __init__(self, 
-        risangbaskoro_videos_dir: str = '/tmp/wlasl-processed/videos',
-        sttaseen_videos_dir: str = '/tmp/wlasl2000-resized/wlasl-complete/videos', 
-        metadata_path: str = '/tmp/WLASL_parsed_metadata.json',
-        **kwargs):
-        """
-        Initialize the WLASLVideoProcessor with directories.
-        
-        Args:
-            risangbaskoro_videos_dir (str): Directory with WLASL videos. Downloaded from https://www.kaggle.com/datasets/risangbaskoro/wlasl-processed/data.
-            sttaseen_videos_dir (str): Directory with backup WLASL videos. Download from https://www.kaggle.com/datasets/sttaseen/wlasl2000-resized/data.
-            metadata_path (str): Path to save parsed metadata.
-            **kwargs: Additional arguments for the VideoLandmarksExtractor.
-        """
+class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVideoProcessor with directories.
+    def __init__(self, clearml_raw_dataset_id: str = '921fdb13ed94464ebcf0dd0586856a5c', **kwargs: dict):
         super().__init__(**kwargs)
-        self.risangbaskoro_videos_dir = Path(risangbaskoro_videos_dir)
-        self.sttaseen_videos_dir = Path(sttaseen_videos_dir) # Backup directory for missing videos
-        if not os.path.exists(self.risangbaskoro_videos_dir / '../WLASL_v0.3.json'):
-            raise ValueError('WLASL metadata file not found. Please download the dataset from https://www.kaggle.com/datasets/risangbaskoro/wlasl-processed/data.')
-        if not os.path.exists(self.sttaseen_videos_dir):
-            raise ValueError("Invalid directory for backup WLASL dataset. Please download the dataset from https://www.kaggle.com/datasets/sttaseen/wlasl2000-resized/data.")
-        
-        self.metadata_path = Path(metadata_path) # Path to save parsed metadata
+        self.task = Task.init(project_name='SyntaxSquad', task_name='step0_landmarks_extraction', task_type=Task.TaskTypes.data_processing)
+        self.task.set_parameter('clearml_raw_dataset_id', clearml_raw_dataset_id)
+        self.task.execute_remotely()
+
+        self.clearml_raw_dataset = Dataset.get(dataset_id=clearml_raw_dataset_id)
+        self.wlasl_path = Path(self.clearml_raw_dataset.get_local_copy())
+        print('Store ClearML dataset in:', self.wlasl_path)
+
+        self._obtain_full_dataset()
+        self.metadata_path = self.wlasl_path / 'WLASL_parsed_metadata.json'
         if self.metadata_path.exists():
-            logger.info(f"Metadata file found at {self.metadata_path}. Loading existing metadata.")
+            print(f"Metadata file found at {self.metadata_path}. Loading existing metadata.")
             with open(self.metadata_path, 'r') as json_file:
                 self.parsed_metadata = json.load(json_file)
-                logger.info(f'Loaded metadata with {len(self.parsed_metadata)} entries.')
+                print(f'Loaded metadata with {len(self.parsed_metadata)} entries.')
         else:
-            logger.info(f"Metadata file not found. Parsing WLASL metadata from {self.risangbaskoro_videos_dir / '../WLASL_v0.3.json'}")
+            print(f"Metadata file not found. Parsing WLASL metadata from {self.risangbaskoro_videos_dir / '../WLASL_v0.3.json'}")
             self._parse_wlasl_metadata()
+
+    
+    def _obtain_full_dataset(self):
+        self.risangbaskoro_zip = Path(self.wlasl_path / 'wlasl-processed.zip')
+        self.sttaseen_zip = Path(self.wlasl_path / 'wlasl2000-resized.zip')
+        risangbaskoro_please_download_text = 'Please download the dataset from https://www.kaggle.com/datasets/risangbaskoro/wlasl-processed/data'
+        sttaseen_please_download_text = 'Please download the dataset from https://www.kaggle.com/datasets/sttaseen/wlasl2000-resized/data'
+
+        if not self.risangbaskoro_zip.exists():
+            print(self.risangbaskoro_zip)
+            raise ValueError('WLASL dataset not found. ' + risangbaskoro_please_download_text)
+        
+        if not self.sttaseen_zip.exists():
+            print(self.sttaseen_zip)
+            raise ValueError('Invalid directory for backup WLASL dataset. ' + sttaseen_please_download_text)
+        
+        if not (self.wlasl_path / 'wlasl-processed').exists(): # Check if the unzipped directory exists
+            print(f'Unzipping {self.risangbaskoro_zip}...')
+            os.system(f"unzip -q {self.risangbaskoro_zip} -d {self.wlasl_path / 'wlasl-processed'}")
+            self.risangbaskoro_videos_dir = Path(self.wlasl_path / 'wlasl-processed/videos')
+            if not (self.risangbaskoro_videos_dir / '../WLASL_v0.3.json').exists():
+                print(self.risangbaskoro_videos_dir / '../WLASL_v0.3.json')
+                raise ValueError('WLASL metadata file not found. ' + risangbaskoro_please_download_text)
+            else: print(f"WLASL metadata file found at {self.risangbaskoro_videos_dir / '../WLASL_v0.3.json'}") 
+        
+        if not (self.wlasl_path / 'wlasl2000-resized').exists(): # Backup directory for missing videos
+            print(f'Unzipping {self.sttaseen_zip}...')
+            os.system(f"unzip -q {self.sttaseen_zip} -d {self.wlasl_path / 'wlasl2000-resized'}")
+            self.sttaseen_videos_dir = Path(self.wlasl_path / 'wlasl2000-resized/wlasl-complete/videos') 
+            if not self.sttaseen_videos_dir.exists():
+                print(self.sttaseen_videos_dir)
+                raise ValueError('Invalid directory for backup WLASL dataset. ' + sttaseen_please_download_text)
+            else: print(f'Backup WLASL dataset found at {self.sttaseen_videos_dir}')
 
 
     def _parse_wlasl_metadata(self):
@@ -77,9 +90,9 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor):
 
             for instance in instances: 
                 video_id = instance['video_id']
-                if os.path.exists(self.risangbaskoro_videos_dir / f'{video_id}.mp4'):
+                if (self.risangbaskoro_videos_dir / f'{video_id}.mp4').exists():
                     video_path = self.risangbaskoro_videos_dir / f'{video_id}.mp4'
-                elif os.path.exists(self.sttaseen_videos_dir / f'{video_id}.mp4'):
+                elif (self.sttaseen_videos_dir / f'{video_id}.mp4').exists():
                     video_path = self.sttaseen_videos_dir / f'{video_id}.mp4' # Add missing videos from wlasl2000-resized
                 else: continue
 
@@ -95,17 +108,16 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor):
         # Save parsed metadata to JSON file
         with open(self.metadata_path, 'w') as json_file:
             json.dump(self.parsed_metadata, json_file, indent=4)
-            logger.info(f'Parsed metadata saved to {self.metadata_path}. Total videos: {len(self.parsed_metadata)}')
+            print(f'Parsed metadata saved to {self.metadata_path}. Total videos: {len(self.parsed_metadata)}')
 
 
-    def extract_wlasl_landmarks(self, output_dir='landmarks', final_npz_path='landmarks.npz'):
-        """
-        Extract landmarks from videos based on metadata and save them to a specified directory.
-        Args:
-            output_dir (str): Directory to save the extracted landmarks.
-            metadata_path (str): Path to the metadata file."
-        """
-        output_dir = Path(output_dir)
+    def extract_wlasl_landmarks(self): # Extract landmarks from WLASL videos and save them to a ClearML dataset.
+        dataset = Dataset.create(
+            dataset_name=self.clearml_raw_dataset.name, 
+            dataset_project='SyntaxSquad', 
+            parent_datasets=[self.clearml_raw_dataset.id],
+        )
+        output_dir = Path(self.wlasl_path / 'WLASL_landmarks')
         output_dir.mkdir(parents=True, exist_ok=True)
         landmarks_dict = {}
 
@@ -118,23 +130,21 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor):
                     npy_path = output_dir / f'{video_path.stem}.npy'
                     saved_data = {**item, 'landmarks': video_landmarks}
                     np.save(npy_path, saved_data)
+                    dataset.add_files(npy_path, recursive=False)
                     landmarks_dict[video_path.stem] = saved_data
-                    logger.info(f'Saved landmarks to {npy_path}')
+                    print(f'Saved landmarks to {npy_path}')
             except Exception as e:
-                logger.error(f"Error processing {video_path}: {e}")
+                print(f"Error processing {video_path}: {e}")
                 continue
             clear_output(wait=True)
 
-        # np.save(final_npz_path, landmarks_dict)
-        np.savez_compressed(final_npz_path, **landmarks_dict)
-        logger.info(f'All landmarks saved to {final_npz_path}')
+        np.savez_compressed(self.wlasl_path / 'WLASL_landmarks.npz', **landmarks_dict)
+        dataset.add_files(self.wlasl_path / 'WLASL_landmarks.npz', recursive=False)
+        dataset.upload(show_progress=True, verbose=True)
+        dataset.finalize(verbose=True)
+        print(f"Dataset '{dataset.name}' expanded from '{self.clearml_raw_dataset.id}' and uploaded successfully with ID: {dataset.id}")
 
 
 if __name__ == "__main__":
-    extractor = WLASLLandmarksExtractor(
-        risangbaskoro_videos_dir='datasets/wlasl-processed/videos',
-        sttaseen_videos_dir='datasets/wlasl2000-resized/wlasl-complete/videos',
-        metadata_path='datasets/WLASL_parsed_metadata.json',
-        use_adaptive_sampling=False
-    )
-    extractor.extract_wlasl_landmarks(output_dir='datasets/WLASL_landmarks', final_npz_path='datasets/WLASL_landmarks.npz')
+    extractor = WLASLLandmarksExtractor(clearml_raw_dataset_id='921fdb13ed94464ebcf0dd0586856a5c')
+    extractor.extract_wlasl_landmarks()
