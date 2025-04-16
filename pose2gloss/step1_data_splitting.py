@@ -10,7 +10,11 @@ from wordcloud import WordCloud
 from clearml import Task, Dataset
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='step1_data_splitting', task_type=Task.TaskTypes.data_processing)
+task = Task.init(
+    project_name='SyntaxSquad', task_type=Task.TaskTypes.data_processing,
+    task_name='Step 1: Split landmarks dataset into train/val/test and perform statistics'
+    
+)
 args = {
     'wlasl_landmarks_dataset_id': '', # ClearML dataset ID for WLASL landmarks dataset
     'chosen_landmarks': None, # List of landmarks to keep (None for all landmarks)

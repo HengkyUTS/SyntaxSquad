@@ -3,7 +3,10 @@ from tqdm import tqdm
 from clearml import Task
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='step2_data_augmentation', task_type=Task.TaskTypes.data_processing)
+task = Task.init(
+    project_name='SyntaxSquad', task_type=Task.TaskTypes.data_processing,
+    task_name='Step 2: Perform random data augmentation on train set'
+)
 task.set_parameter('data_splitting_task_id', '') # will be set by the pipeline
 task.execute_remotely()
 

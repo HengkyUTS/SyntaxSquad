@@ -4,7 +4,10 @@ from sklearn.preprocessing import LabelEncoder
 from clearml import Task
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='step3_data_transformation', task_type=Task.TaskTypes.data_processing)
+task = Task.init(
+    project_name='SyntaxSquad', task_type=Task.TaskTypes.data_processing,
+    task_name='Step 3: Perform padding or truncation on X_train/X_val/X_test and label encoding on y_train/y_val/y_test'
+)
 args = {
     'data_splitting_task_id': '',  # ID of the task that performed data splitting
     'data_augmentation_task_id': '',  # ID of the task that performed data augmentation

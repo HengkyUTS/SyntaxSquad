@@ -5,7 +5,10 @@ from clearml import Task, OutputModel
 from model_utils import build_and_compile_GISLR, prepare_tf_dataset
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training)
+task = Task.init(
+    project_name='SyntaxSquad', task_type=Task.TaskTypes.training,
+    task_name='Step 4: Prepare TF dataset with nose normalization and train the model'
+)
 args = {
     'data_transformation_task_id': '', # ID of the task that performed data transformation
     'max_frames': 195, # Maximum number of frames for padding/truncating
@@ -20,6 +23,8 @@ args = {
     'reduce_lr_min_lr': 1e-6, # Minimum learning rate for ReduceLROnPlateau
     'reduce_lr_factor': 0.7, # Factor for ReduceLROnPlateau
 }
+
+Task.add_requirements('nvidia-cudnn-cu12', '9.3.0.75')
 task.connect(args)
 task.execute_remotely()
 

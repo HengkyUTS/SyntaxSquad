@@ -33,10 +33,10 @@ pipe.add_parameter('reduce_lr_min_lr', default=1e-6, description='Minimum learni
 pipe.add_parameter('reduce_lr_factor', default=0.7, description='Factor for ReduceLROnPlateau')
 pipe.set_default_execution_queue('SyntaxSquad_Queue')
 
-pipe.add_step( # Step 1: Split landmarks dataset into train/val/test and perform statistics
+pipe.add_step(
     name='step1_data_splitting',
     base_task_project='SyntaxSquad',
-    base_task_name='step1_data_splitting',
+    base_task_name='Step 1: Split landmarks dataset into train/val/test and perform statistics',
     parameter_override={
         'General/wlasl_landmarks_dataset_id': '${pipeline.wlasl_landmarks_dataset_id}',
         'General/chosen_landmarks': '${pipeline.chosen_landmarks}',
@@ -46,22 +46,22 @@ pipe.add_step( # Step 1: Split landmarks dataset into train/val/test and perform
     },
 )
 
-pipe.add_step( # Step 2: Perform random data augmentation on train set
+pipe.add_step(
     name='step2_data_augmentation',
     parents=['step1_data_splitting'],
-    base_task_name='step2_data_augmentation',
+    base_task_name='Step 2: Perform random data augmentation on train set',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_splitting_task_id': '${step1_data_splitting.id}',
     },
-    pre_execute_callback=pre_execute_callback,
-    post_execute_callback=post_execute_callback,
+    # pre_execute_callback=pre_execute_callback,
+    # post_execute_callback=post_execute_callback,
 )
 
-pipe.add_step( # Step 3: Perform padding or truncation on X_train/X_val/X_test and label encoding on y_train/y_val/y_test
+pipe.add_step( # 
     name='step3_data_transformation',
     parents=['step1_data_splitting', 'step2_data_augmentation'],
-    base_task_name='step3_data_transformation',
+    base_task_name='Step 3: Perform padding or truncation on X_train/X_val/X_test and label encoding on y_train/y_val/y_test',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_splitting_task_id': '${step1_data_splitting.id}',
@@ -69,14 +69,14 @@ pipe.add_step( # Step 3: Perform padding or truncation on X_train/X_val/X_test a
         'General/max_frames': '${pipeline.max_frames}',
         'General/pad_value': '${pipeline.pad_value}',
     },
-    pre_execute_callback=pre_execute_callback,
-    post_execute_callback=post_execute_callback,
+    # pre_execute_callback=pre_execute_callback,
+    # post_execute_callback=post_execute_callback,
 )
 
-pipe.add_step( # Step 4: Prepare TF dataset with nose normalization and train the model
+pipe.add_step( # 
     name='step4_model_training',
     parents=['step3_data_transformation'],
-    base_task_name='step4_model_training',
+    base_task_name='Step 4: Prepare TF dataset with nose normalization and train the model',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_transformation_task_id': '${step3_data_transformation.id}',
@@ -92,14 +92,14 @@ pipe.add_step( # Step 4: Prepare TF dataset with nose normalization and train th
         'General/reduce_lr_min_lr': '${pipeline.reduce_lr_min_lr}',
         'General/reduce_lr_factor': '${pipeline.reduce_lr_factor}',
     },
-    pre_execute_callback=pre_execute_callback,
-    post_execute_callback=post_execute_callback,
+    # pre_execute_callback=pre_execute_callback,
+    # post_execute_callback=post_execute_callback,
 )
 
 pipe.add_step( # Step 5: Evaluate the model
     name='step5_model_evaluation',
     parents=['step3_data_transformation', 'step4_model_training'],
-    base_task_name='step5_model_evaluation',
+    base_task_name='Step 5: Evaluate the model',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_transformation_task_id': '${step3_data_transformation.id}',
@@ -111,8 +111,8 @@ pipe.add_step( # Step 5: Evaluate the model
         'General/conv1d_dropout': 0.2,
         'General/last_dropout': 0.2,
     },
-    pre_execute_callback=pre_execute_callback,
-    post_execute_callback=post_execute_callback,
+    # pre_execute_callback=pre_execute_callback,
+    # post_execute_callback=post_execute_callback,
 )
 
 pipe.start(queue='SyntaxSquad_Queue')
