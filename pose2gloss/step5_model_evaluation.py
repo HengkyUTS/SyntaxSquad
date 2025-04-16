@@ -2,6 +2,7 @@ from model_utils import build_and_compile_GISLR, prepare_tf_dataset
 from clearml import Task
 
 # Initialize the ClearML task
+Task.add_requirements('nvidia-cudnn-cu12', '9.3.0.75')
 task = Task.init(project_name='SyntaxSquad', task_type=Task.TaskTypes.testing, task_name='Step 5: Evaluate the model')
 args = {
     'data_transformation_task_id': '', # ID of the task that performed data transformation
@@ -13,8 +14,6 @@ args = {
     'conv1d_dropout': 0.2, # Dropout rate for the Conv1D layers
     'last_dropout': 0.2, # Dropout rate for the last Dense layer
 }
-
-Task.add_requirements('nvidia-cudnn-cu12', '9.3.0.75')
 task.connect(args)
 task.execute_remotely()
 
