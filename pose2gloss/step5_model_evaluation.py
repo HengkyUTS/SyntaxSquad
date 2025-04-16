@@ -43,7 +43,7 @@ model.load_weights(weights_path)
 # # Prepare the TF dataset for efficient data loading
 train_tf_dataset = prepare_tf_dataset(X_train, y_train, batch_size=args['batch_size'], shuffle=True)
 val_tf_dataset = prepare_tf_dataset(X_val, y_val, batch_size=args['batch_size'], shuffle=False)
-test_tf_dataset = prepare_tf_dataset(X_test, y_test, batch_size=args['batch_size'], shuffle=True)
+test_tf_dataset = prepare_tf_dataset(X_test, y_test, batch_size=args['batch_size'], shuffle=False)
 
 # Evaluation
 train_loss, train_accuracy, train_top5_accuracy = model.evaluate(train_tf_dataset, batch_size=args['batch_size'], verbose=1)
@@ -51,16 +51,16 @@ val_loss, val_accuracy, val_top5_accuracy = model.evaluate(val_tf_dataset, batch
 test_loss, test_accuracy, test_top5_accuracy = model.evaluate(test_tf_dataset, batch_size=args['batch_size'], verbose=1)
 
 metrics_table = pd.DataFrame({
-    'Metric': ['Loss', 'Accuracy', 'Top-5 Accuracy'],
-    'Train': [train_loss, train_accuracy, train_top5_accuracy],
-    'Val': [val_loss, val_accuracy, val_top5_accuracy],
-    'Test': [test_loss, test_accuracy, test_top5_accuracy]
-}).T
+    'Subset': ['Train', 'Validation', 'Test'],
+    'Loss': [train_loss, val_loss, test_loss],
+    'Accuracy': [train_accuracy, val_accuracy, test_accuracy],
+    'Top-5 Accuracy': [train_top5_accuracy, val_top5_accuracy, test_top5_accuracy],
+})
 task.logger.report_table(table_plot=metrics_table, title='Model evaluation metrics on 3 subsets', series='Statistics')
 
 y_test_preds = np.argmax(model.predict(test_tf_dataset), axis=1)
-classification_report_df = pd.DataFrame(classification_report(y_test, y_test_preds, output_dict=True, target_names=gloss_labels, zero_division=0)).T
-task.logger.report_table(table_plot=classification_report_df, title='Classification report on test set', series='Statistics')
+cls_report_df = pd.DataFrame(classification_report(y_test, y_test_preds, output_dict=True, target_names=gloss_labels, zero_division=0)).T
+task.logger.report_table(table_plot=cls_report_df, title='Classification report on test set', series='Statistics')
 
 cm = confusion_matrix(y_test, y_test_preds)
 task.logger.report_confusion_matrix(
