@@ -32,10 +32,10 @@ pipe.add_parameter('reduce_lr_patience', default=5, description='Patience for Re
 pipe.add_parameter('reduce_lr_min_lr', default=1e-6, description='Minimum learning rate for ReduceLROnPlateau')
 pipe.add_parameter('reduce_lr_factor', default=0.7, description='Factor for ReduceLROnPlateau')
 
-pipe.add_step(
+pipe.add_step( # Step 1: Split landmarks dataset into train/val/test and perform statistics
     name='step1_data_splitting',
     base_task_project='SyntaxSquad',
-    base_task_name='Step 1: Split landmarks dataset into train/val/test and perform statistics',
+    base_task_name='step1_data_splitting',
     parameter_override={
         'General/wlasl_landmarks_dataset_id': '${pipeline.wlasl_landmarks_dataset_id}',
         'General/chosen_landmarks': '${pipeline.chosen_landmarks}',
@@ -45,10 +45,10 @@ pipe.add_step(
     },
 )
 
-pipe.add_step(
+pipe.add_step( # Step 2: Perform random data augmentation on train set
     name='step2_data_augmentation',
     parents=['step1_data_splitting'],
-    base_task_name='Step 2: Perform random data augmentation on train set',
+    base_task_name='step2_data_augmentation',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_splitting_task_id': '${step1_data_splitting.id}',
@@ -57,10 +57,10 @@ pipe.add_step(
     post_execute_callback=post_execute_callback,
 )
 
-pipe.add_step(
+pipe.add_step( # Step 3: Perform padding or truncation on X_train/X_val/X_test and label encoding on y_train/y_val/y_test
     name='step3_data_transformation',
     parents=['step1_data_splitting', 'step2_data_augmentation'],
-    base_task_name='Step 3: Perform padding or truncation on X_train/X_val/X_test and label encoding on y_train/y_val/y_test',
+    base_task_name='step3_data_transformation',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_splitting_task_id': '${step1_data_splitting.id}',
@@ -72,10 +72,10 @@ pipe.add_step(
     post_execute_callback=post_execute_callback,
 )
 
-pipe.add_step(
+pipe.add_step( # Step 4: Prepare TF dataset with nose normalization and train the model
     name='step4_model_training',
     parents=['step3_data_transformation'],
-    base_task_name='Step 4: Prepare TF dataset with nose normalization and train the model',
+    base_task_name='step4_model_training',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_transformation_task_id': '${step3_data_transformation.id}',
@@ -95,10 +95,10 @@ pipe.add_step(
     post_execute_callback=post_execute_callback,
 )
 
-pipe.add_step(
+pipe.add_step( # Step 5: Evaluate the model
     name='step5_model_evaluation',
     parents=['step3_data_transformation', 'step4_model_training'],
-    base_task_name='Step 5: Evaluate the model',
+    base_task_name='step5_model_evaluation',
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_transformation_task_id': '${step3_data_transformation.id}',
