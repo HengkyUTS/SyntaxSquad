@@ -4,14 +4,14 @@ from clearml import Task
 # Initialize the ClearML task
 task = Task.init(project_name='SyntaxSquad', task_name='step5_model_evaluation', task_type=Task.TaskTypes.testing)
 args = {
-    'data_transformation_task_id': '775f62600cb64fd0bae2404a31084177',
-    'model_training_task_id': '89b93c02537141b1aeb270fb1d6f0fc1',
-    'max_frames': 195,
-    'pad_value': -100,
-    'learning_rate': 0.001,
-    'batch_size': 128,
-    'conv1d_dropout': 0.2,
-    'last_dropout': 0.2,
+    'data_transformation_task_id': '', # ID of the task that performed data transformation
+    'model_training_task_id': '', # ID of the task that performed model training
+    'max_frames': 195, # Maximum number of frames for padding/truncating
+    'pad_value': -100, # Value to pad with
+    'learning_rate': 0.001, # Learning rate for the optimizer
+    'batch_size': 128, # Batch size for the dataset
+    'conv1d_dropout': 0.2, # Dropout rate for the Conv1D layers
+    'last_dropout': 0.2, # Dropout rate for the last Dense layer
 }
 task.connect(args)
 task.execute_remotely()

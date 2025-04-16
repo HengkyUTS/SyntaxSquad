@@ -12,11 +12,11 @@ from clearml import Task, Dataset
 # Initialize the ClearML task
 task = Task.init(project_name='SyntaxSquad', task_name='step1_data_splitting', task_type=Task.TaskTypes.data_processing)
 args = {
-    'wlasl_landmarks_dataset_id': '3b222a4667044677b2f7bc0a628ea9f4',
-    'chosen_landmarks': None,
-    'chosen_labels': None,
-    'max_labels': 100,
-    'max_samples': None
+    'wlasl_landmarks_dataset_id': '', # ClearML dataset ID for WLASL landmarks dataset
+    'chosen_landmarks': None, # List of landmarks to keep (None for all landmarks)
+    'chosen_labels': None, # List of labels to keep (None for all labels)
+    'max_labels': 100, # Top N labels to keep (None for all labels)
+    'max_samples': None # Maximum number of samples to keep (None for all samples)
 }
 task.connect(args)
 task.execute_remotely()

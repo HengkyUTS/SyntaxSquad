@@ -7,18 +7,18 @@ from model_utils import build_and_compile_GISLR, prepare_tf_dataset
 # Initialize the ClearML task
 task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training)
 args = {
-    'data_transformation_task_id': '775f62600cb64fd0bae2404a31084177',
-    'max_frames': 195,
-    'pad_value': -100,
-    'batch_size': 128,
-    'epochs': 100,
-    'learning_rate': 0.001,
-    'conv1d_dropout': 0.2,
-    'last_dropout': 0.2,
-    'weights_name': 'wlasl100.h5',
-    'reduce_lr_patience': 5,
-    'reduce_lr_min_lr': 1e-6,
-    'reduce_lr_factor': 0.7,
+    'data_transformation_task_id': '', # ID of the task that performed data transformation
+    'max_frames': 195, # Maximum number of frames for padding/truncating
+    'pad_value': -100, # Value to pad with
+    'batch_size': 128, # Batch size for training
+    'epochs': 100, # Number of epochs for training
+    'learning_rate': 0.001, # Learning rate for the optimizer
+    'conv1d_dropout': 0.2, # Dropout rate for Conv1DBlock layers
+    'last_dropout': 0.2, # Dropout rate before the final layer
+    'weights_name': 'wlasl100.h5', # Weights file name
+    'reduce_lr_patience': 5, # Patience for ReduceLROnPlateau
+    'reduce_lr_min_lr': 1e-6, # Minimum learning rate for ReduceLROnPlateau
+    'reduce_lr_factor': 0.7, # Factor for ReduceLROnPlateau
 }
 task.connect(args)
 task.execute_remotely()

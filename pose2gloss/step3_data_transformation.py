@@ -6,10 +6,10 @@ from clearml import Task
 # Initialize the ClearML task
 task = Task.init(project_name='SyntaxSquad', task_name='step3_data_transformation', task_type=Task.TaskTypes.data_processing)
 args = {
-    'data_splitting_task_id': '9ebed244b2ab4a448bf076e6334279f4',  # ID of the task that performed data splitting
-    'data_augmentation_task_id': '24dcaf9d11fc482f81a34f9a0404f0f6',  # ID of the task that performed data augmentation
-    'max_frames': 195,
-    'pad_value': -100,
+    'data_splitting_task_id': '',  # ID of the task that performed data splitting
+    'data_augmentation_task_id': '',  # ID of the task that performed data augmentation
+    'max_frames': 195, # Maximum number of frames for padding/truncating
+    'pad_value': -100, # Value to pad with
 }
 task.connect(args)
 task.execute_remotely()
