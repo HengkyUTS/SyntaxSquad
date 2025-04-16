@@ -48,13 +48,13 @@ plt.subplot(1, 2, 2)
 plt.hist(counts, edgecolor='black')
 plt.ylabel('Frequency')
 plt.tight_layout()
-task.logger.report_matplotlib_figure(figure=plt, title=f"Distribution of Top {top_n}/{args['max_labels']} Glosses", series='ignored')
+task.logger.report_matplotlib_figure(figure=plt, title=f"Distribution of Top {top_n}/{args['max_labels']} Glosses", series='Statistics')
 
 wordcloud = WordCloud(width=1000, height=500, background_color='white').generate_from_frequencies(glosses_counts)
 plt.figure(figsize=(10, 5))
 plt.imshow(wordcloud, interpolation='bilinear')
 plt.axis('off')
-task.logger.report_matplotlib_figure(figure=plt, title=f"Word Cloud of Top {top_n}/{args['max_labels']} Glosses", series='ignored')
+task.logger.report_matplotlib_figure(figure=plt, title=f"Word Cloud of Top {top_n}/{args['max_labels']} Glosses", series='Statistics')
 
 
 # Splitting the dataset into train, validation, and test sets
@@ -137,13 +137,13 @@ detailed_stats = combined_details.groupby('Subset').agg({'Video Length': ['mean'
 # Merge high-level and detailed statistics
 detailed_stats.columns = ['Subset'] + [f"{col[0]} ({col[1]})" for col in detailed_stats.columns[1:]]
 final_stats = pd.merge(subset_summary, detailed_stats, on='Subset')
-task.logger.report_table(table_plot=final_stats, title=f"Dataset Statistics for Top {args['max_labels']} Glosses", series='ignored')
+task.logger.report_table(table_plot=final_stats, title=f"Dataset Statistics for Top {args['max_labels']} Glosses", series='Statistics')
 
 # Visualize the statistics
 fig = px.histogram(combined_details, x='Video Length', color='Subset', barmode='overlay', nbins=20)
 fig.update_layout(xaxis_title='Video Length', yaxis_title='Frequency', legend_title='Subset')
-task.logger.report_plotly(figure=fig, title=f"Histogram of Video Length by Subset (Top {args['max_labels']} Glosses)", series='ignored')
+task.logger.report_plotly(figure=fig, title=f"Histogram of Video Length by Subset (Top {args['max_labels']} Glosses)", series='Statistics')
 
 fig = px.box(combined_details, x='Subset', y='Video Length', color='Subset')
 fig.update_layout(xaxis_title='Subset', yaxis_title='Video Length (Frames)')
-task.logger.report_plotly(figure=fig, title=f"Boxplot of Video Length by Subset (Top {args['max_labels']} Glosses)", series='ignored')
+task.logger.report_plotly(figure=fig, title=f"Boxplot of Video Length by Subset (Top {args['max_labels']} Glosses)", series='Statistics')
