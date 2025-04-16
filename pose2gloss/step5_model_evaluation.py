@@ -9,7 +9,6 @@ args = {
     'max_frames': 195,
     'pad_value': -100,
     'num_landmarks': 180,
-    'num_glosses': 100,
     'learning_rate': 0.001,
     'batch_size': 128,
     'conv1d_dropout': 0.2,
@@ -20,12 +19,17 @@ task.execute_remotely()
 
 # Get test data
 data_transformation_task = Task.get_task(task_id=args['data_transformation_task_id'])
+X_train, y_train = data_transformation_task.artifacts['X_train'].get(), data_transformation_task.artifacts['y_train'].get()
 X_test, y_test = data_transformation_task.artifacts['X_test'].get(), data_transformation_task.artifacts['y_test'].get()
+num_glosses = len(set(y_train))
+
+# Prepare the TF dataset for efficient data loading
+train_tf_dataset = prepare_tf_dataset(X_train, y_train, batch_size=args['batch_size'], shuffle=True)
 test_tf_dataset = prepare_tf_dataset(X_test, y_test, batch_size=args['batch_size'], shuffle=True)
 
 # Build and compile the model
 model = build_and_compile_GISLR(
-    args['max_frames'], num_landmarks=args['num_landmarks'], num_glosses=args['num_glosses'], pad_value=args['pad_value'], 
+    args['max_frames'], num_landmarks=args['num_landmarks'], num_glosses=num_glosses, pad_value=args['pad_value'], 
     conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'], learning_rate=args['learning_rate'], is_training=False,
 )
 model.summary()
