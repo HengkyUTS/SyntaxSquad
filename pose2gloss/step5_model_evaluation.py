@@ -1,7 +1,4 @@
-from tensorflow.keras.optimizers import AdamW
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
-from model_utils import build_GISLR, prepare_tf_dataset
+from model_utils import build_and_compile_GISLR, prepare_tf_dataset
 from clearml import Task
 
 # Initialize the ClearML task
@@ -23,19 +20,13 @@ task.execute_remotely()
 
 # Get test data
 data_transformation_task = Task.get_task(task_id=args['data_transformation_task_id'])
-X_test, y_test = data_transformation_task.artifacts['X_train'].get(), data_transformation_task.artifacts['y_train'].get()
+X_test, y_test = data_transformation_task.artifacts['X_test'].get(), data_transformation_task.artifacts['y_test'].get()
 test_tf_dataset = prepare_tf_dataset(X_test, y_test, batch_size=args['batch_size'], shuffle=True)
 
 # Build and compile the model
-model = build_GISLR(
-    args['max_frames'], num_landmarks=args['num_landmarks'], num_glosses=args['num_glosses'], 
-    pad_value=args['pad_value'], conv1d_dropout=args['conv1d_dropout'], 
-    last_dropout=args['last_dropout'], is_training=False,
-)
-model.compile(
-    optimizer=AdamW(learning_rate=args['learning_rate']),
-    loss=SparseCategoricalCrossentropy(from_logits=True),
-    metrics=['accuracy', SparseTopKCategoricalAccuracy(k=5, name='top5_accuracy')],
+model = build_and_compile_GISLR(
+    args['max_frames'], num_landmarks=args['num_landmarks'], num_glosses=args['num_glosses'], pad_value=args['pad_value'], 
+    conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'], learning_rate=args['learning_rate'], is_training=False,
 )
 model.summary()
 

@@ -1,11 +1,8 @@
 import tensorflow as tf
 import tensorflow.keras.mixed_precision as mixed_precision
-from tensorflow.keras.optimizers import AdamW
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback
 from clearml import Task, OutputModel
-from model_utils import build_GISLR, prepare_tf_dataset
+from model_utils import build_and_compile_GISLR, prepare_tf_dataset
 
 # Initialize the ClearML task
 task = Task.init(project_name='SyntaxSquad', task_name='step4_model_training', task_type=Task.TaskTypes.training)
@@ -50,14 +47,9 @@ train_tf_dataset = prepare_tf_dataset(X_train, y_train, batch_size=args['batch_s
 val_tf_dataset = prepare_tf_dataset(X_val, y_val, batch_size=args['batch_size'], shuffle=False)
 
 # Build and compile the model
-model = build_GISLR(
-    args['max_frames'], num_landmarks=args['num_landmarks'], num_glosses=args['num_glosses'], 
-    pad_value=args['pad_value'], conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'],
-)
-model.compile(
-    optimizer=AdamW(learning_rate=args['learning_rate']),
-    loss=SparseCategoricalCrossentropy(from_logits=True),
-    metrics=['accuracy', SparseTopKCategoricalAccuracy(k=5, name='top5_accuracy')],
+model = build_and_compile_GISLR(
+    args['max_frames'], num_landmarks=args['num_landmarks'], num_glosses=args['num_glosses'], pad_value=args['pad_value'], 
+    conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'], learning_rate=args['learning_rate'],
 )
 model.summary()
 
@@ -79,10 +71,9 @@ history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks 
         task.logger.report_scalar(title='Top 5 Accuracy', value=logs['top5_accuracy'], iteration=epoch, series='Training'),
         task.logger.report_scalar(title='Top 5 Accuracy', value=logs['val_top5_accuracy'], iteration=epoch, series='Validation'),
     ]),
-], epochs=args['epochs'], verbose=1).history
+], epochs=args['epochs'], verbose=1)
 
 # Save the model and training history
 output_model = OutputModel(task=task)
 output_model.update_weights(args['weights_name'], upload_uri='https://files.clear.ml')
 output_model.publish()
-task.upload_artifact('training_history', artifact_object=history)

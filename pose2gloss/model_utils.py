@@ -3,6 +3,9 @@ from tensorflow.keras.layers import (
     Conv1D, Dropout, ZeroPadding1D, DepthwiseConv1D, Dense, BatchNormalization,
     MultiHeadAttention, Reshape, Add, Masking, GlobalAveragePooling1D
 )
+from tensorflow.keras.optimizers import AdamW
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
 
 
 class EfficientChannelAttention(tf.keras.layers.Layer):
@@ -79,9 +82,9 @@ def Conv1DTransformerBlock(x, dim, kernel_size, drop_rate=0.2):
     return TransformerBlock(dim, expand=2)(x)
 
 
-def build_GISLR(
-    max_frames, num_landmarks=180, num_glosses=100, pad_value=-100, 
-    dim=192, kernel_size=17, conv1d_dropout=0.2, last_dropout=0.2, is_training=True
+def build_and_compile_GISLR(
+    max_frames, num_landmarks=180, num_glosses=100, pad_value=-100, dim=192, kernel_size=17, 
+    conv1d_dropout=0.2, last_dropout=0.2, learning_rate=1e-3, is_training=True
 ):
     inputs = tf.keras.Input((max_frames, num_landmarks, 3)) # 180 landmarks with 3 coordinates
     x = Reshape((max_frames, num_landmarks * 3))(inputs)
@@ -94,7 +97,14 @@ def build_GISLR(
     x = GlobalAveragePooling1D()(x)
     x = Dropout(last_dropout)(x)
     x = Dense(num_glosses, name='output')(x)
-    return tf.keras.Model(inputs, x)
+
+    model = tf.keras.Model(inputs, x)
+    model.compile(
+        optimizer=AdamW(learning_rate=learning_rate),
+        loss=SparseCategoricalCrossentropy(from_logits=True),
+        metrics=['accuracy', SparseTopKCategoricalAccuracy(k=5, name='top5_accuracy')],
+    )
+    return model
 
 
 def pose_based_normalize(video_landmarks, label, scale_by_shoulder=False):
