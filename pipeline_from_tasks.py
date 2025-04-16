@@ -31,7 +31,7 @@ pipe.add_parameter('weights_name', default='wlasl100.h5', description='Weights f
 pipe.add_parameter('reduce_lr_patience', default=5, description='Patience for ReduceLROnPlateau')
 pipe.add_parameter('reduce_lr_min_lr', default=1e-6, description='Minimum learning rate for ReduceLROnPlateau')
 pipe.add_parameter('reduce_lr_factor', default=0.7, description='Factor for ReduceLROnPlateau')
-pipe.set_default_execution_queue('SyntaxSquad_queue')
+pipe.set_default_execution_queue('SyntaxSquad_Queue')
 
 pipe.add_step( # Step 1: Split landmarks dataset into train/val/test and perform statistics
     name='step1_data_splitting',
@@ -115,4 +115,4 @@ pipe.add_step( # Step 5: Evaluate the model
     post_execute_callback=post_execute_callback,
 )
 
-pipe.start(queue='SyntaxSquad_queue')
+pipe.start(queue='SyntaxSquad_Queue')
