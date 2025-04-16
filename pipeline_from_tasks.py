@@ -20,6 +20,7 @@ pipe.add_parameter('chosen_landmarks', default=None, description='Landmarks to u
 pipe.add_parameter('chosen_labels', default=None, description='Labels to use for training')
 pipe.add_parameter('max_labels', default=100, description='Maximum number of labels to use for training')
 pipe.add_parameter('max_samples', default=None, description='Maximum number of samples to use for training')
+pipe.add_parameter('augmentation_frequency', default=1, description='Number of times to apply augmentation')
 pipe.add_parameter('max_frames', default=195, description='Maximum number of frames to use for training')
 pipe.add_parameter('pad_value', default=-100, description='Padding value for frames')
 pipe.add_parameter('batch_size', default=128, description='Batch size for training')
@@ -45,7 +46,6 @@ pipe.add_step(
         'General/max_samples': '${pipeline.max_samples}',
     },
 )
-
 pipe.add_step(
     name='step2_data_augmentation',
     parents=['step1_data_splitting'],
@@ -53,11 +53,11 @@ pipe.add_step(
     base_task_project='SyntaxSquad',
     parameter_override={
         'General/data_splitting_task_id': '${step1_data_splitting.id}',
+        'General/augmentation_frequency': '${pipeline.augmentation_frequency}',
     },
     # pre_execute_callback=pre_execute_callback,
     # post_execute_callback=post_execute_callback,
 )
-
 pipe.add_step( # 
     name='step3_data_transformation',
     parents=['step1_data_splitting', 'step2_data_augmentation'],
@@ -72,7 +72,6 @@ pipe.add_step( #
     # pre_execute_callback=pre_execute_callback,
     # post_execute_callback=post_execute_callback,
 )
-
 pipe.add_step( # 
     name='step4_model_training',
     parents=['step3_data_transformation'],
@@ -95,7 +94,6 @@ pipe.add_step( #
     # pre_execute_callback=pre_execute_callback,
     # post_execute_callback=post_execute_callback,
 )
-
 pipe.add_step( # Step 5: Evaluate the model
     name='step5_model_evaluation',
     parents=['step3_data_transformation', 'step4_model_training'],
@@ -115,4 +113,6 @@ pipe.add_step( # Step 5: Evaluate the model
     # post_execute_callback=post_execute_callback,
 )
 
-pipe.start(queue='SyntaxSquad_Queue')
+# Cannot use the same with the tasks: https://github.com/clearml/clearml/issues/1328
+# pipe.start() # This will the queue 'services' as default name
+pipe.start_locally()

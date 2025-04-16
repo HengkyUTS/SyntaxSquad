@@ -7,7 +7,11 @@ task = Task.init(
     project_name='SyntaxSquad', task_type=Task.TaskTypes.data_processing,
     task_name='Step 2: Perform random data augmentation on train set'
 )
-task.set_parameter('data_splitting_task_id', '') # will be set by the pipeline
+args = {
+    'data_splitting_task_id': '', # ID of the task that performed data splitting
+    'augmentation_frequency': 1, # Number of times to apply augmentation
+}
+task.connect(args)
 task.execute_remotely()
 
 
@@ -114,10 +118,10 @@ def augment(X, y, num=None):
             y_aug.append(y[i])
     return X_aug, y_aug
 
-data_splitting_task = Task.get_task(task_id=task.get_parameter('General/data_splitting_task_id'))
+data_splitting_task = Task.get_task(task_id=args['data_splitting_task_id'])
 X_train = data_splitting_task.artifacts['X_train'].get()
 y_train = data_splitting_task.artifacts['y_train'].get()
-X_train, y_train = augment(X_train, y_train, num=1)
+X_train, y_train = augment(X_train, y_train, num=args['augmentation_frequency'])
 
 print('The Training set has', len(X_train), 'videos')
 print('First video has', len(X_train[0]), 'frames')
