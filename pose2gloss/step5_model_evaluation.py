@@ -64,6 +64,6 @@ task.logger.report_table(table_plot=cls_report_df, title='Classification report 
 
 cm = confusion_matrix(y_test, y_test_preds)
 task.logger.report_confusion_matrix(
-    matrix=cm, title='Confusion matrix on test set', series='ignored',
-    xlabels=gloss_labels, ylabels=gloss_labels, xaxis='Predicted gloss', yaxis='True gloss',
+    matrix=cm, title='Confusion matrix on test set', series='ignored', yaxis_reversed=True,
+    xlabels=gloss_labels, ylabels=gloss_labels, xaxis='Predicted gloss', yaxis='True gloss'
 )
