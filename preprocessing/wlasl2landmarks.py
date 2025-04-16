@@ -11,7 +11,10 @@ from clearml import Task, Dataset
 class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVideoProcessor with directories.
     def __init__(self, clearml_raw_dataset_id: str = '921fdb13ed94464ebcf0dd0586856a5c', **kwargs: dict):
         super().__init__(**kwargs)
-        self.task = Task.init(project_name='SyntaxSquad', task_name='step0_landmarks_extraction', task_type=Task.TaskTypes.data_processing)
+        self.task = Task.init(
+            project_name='SyntaxSquad', task_type=Task.TaskTypes.data_processing,
+            task_name='Step 0: Landmarks extraction (extremely slow)'
+        )
         self.task.set_parameter('clearml_raw_dataset_id', clearml_raw_dataset_id)
         self.task.execute_remotely()
 
