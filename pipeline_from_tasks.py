@@ -55,8 +55,8 @@ pipe.add_step(
         'General/data_splitting_task_id': '${step1_data_splitting.id}',
         'General/augmentation_frequency': '${pipeline.augmentation_frequency}',
     },
-    # pre_execute_callback=pre_execute_callback,
-    # post_execute_callback=post_execute_callback,
+    pre_execute_callback=pre_execute_callback,
+    post_execute_callback=post_execute_callback,
 )
 pipe.add_step( # 
     name='step3_data_transformation',
@@ -69,8 +69,8 @@ pipe.add_step( #
         'General/max_frames': '${pipeline.max_frames}',
         'General/pad_value': '${pipeline.pad_value}',
     },
-    # pre_execute_callback=pre_execute_callback,
-    # post_execute_callback=post_execute_callback,
+    pre_execute_callback=pre_execute_callback,
+    post_execute_callback=post_execute_callback,
 )
 pipe.add_step( # 
     name='step4_model_training',
@@ -91,8 +91,8 @@ pipe.add_step( #
         'General/reduce_lr_min_lr': '${pipeline.reduce_lr_min_lr}',
         'General/reduce_lr_factor': '${pipeline.reduce_lr_factor}',
     },
-    # pre_execute_callback=pre_execute_callback,
-    # post_execute_callback=post_execute_callback,
+    pre_execute_callback=pre_execute_callback,
+    post_execute_callback=post_execute_callback,
 )
 pipe.add_step( # Step 5: Evaluate the model
     name='step5_model_evaluation',
@@ -102,15 +102,15 @@ pipe.add_step( # Step 5: Evaluate the model
     parameter_override={
         'General/data_transformation_task_id': '${step3_data_transformation.id}',
         'General/model_training_task_id': '${step4_model_training.id}',
-        'General/max_frames': 195,
-        'General/pad_value': -100,
-        'General/learning_rate': 0.001,
-        'General/batch_size': 128,
-        'General/conv1d_dropout': 0.2,
-        'General/last_dropout': 0.2,
+        'General/max_frames': '${pipeline.max_frames}',
+        'General/pad_value': '${pipeline.pad_value}',
+        'General/learning_rate': '${pipeline.learning_rate}',
+        'General/batch_size': '${pipeline.batch_size}',
+        'General/conv1d_dropout': '${pipeline.conv1d_dropout}',
+        'General/last_dropout': '${pipeline.last_dropout}',
     },
-    # pre_execute_callback=pre_execute_callback,
-    # post_execute_callback=post_execute_callback,
+    pre_execute_callback=pre_execute_callback,
+    post_execute_callback=post_execute_callback,
 )
 
 # Cannot use the same with the tasks: https://github.com/clearml/clearml/issues/1328
