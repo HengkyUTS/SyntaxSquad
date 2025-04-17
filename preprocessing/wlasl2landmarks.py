@@ -11,7 +11,10 @@ from clearml import Task, Dataset
 class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVideoProcessor with directories.
     def __init__(self, clearml_raw_dataset_id: str = '921fdb13ed94464ebcf0dd0586856a5c', **kwargs: dict):
         super().__init__(**kwargs)
-        self.task = Task.init(project_name='SyntaxSquad', task_name='step0_landmarks_extraction', task_type=Task.TaskTypes.data_processing)
+        self.task = Task.init(
+            project_name='SyntaxSquad', task_type=Task.TaskTypes.data_processing,
+            task_name='Step 0: Landmarks extraction (extremely slow)'
+        )
         self.task.set_parameter('clearml_raw_dataset_id', clearml_raw_dataset_id)
         self.task.execute_remotely()
 
@@ -111,7 +114,12 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
             print(f'Parsed metadata saved to {self.metadata_path}. Total videos: {len(self.parsed_metadata)}')
 
 
-    def extract_wlasl_landmarks(self): # Extract landmarks from WLASL videos and save them to a ClearML dataset.
+    def extract_wlasl_landmarks(self):
+        """
+        Extract landmarks from WLASL videos and save them to a ClearML dataset.
+        This method creates a new ClearML dataset, extracts landmarks from the videos, and uploads the dataset to ClearML.
+        The landmarks are saved in a compressed .npz file, which is then uploaded to the ClearML dataset.
+        """
         dataset = Dataset.create(
             dataset_name=self.clearml_raw_dataset.name, 
             dataset_project='SyntaxSquad', 
@@ -125,9 +133,9 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
             video_path = Path(item['video_path'])
             start, end = item['frame_start'], item['frame_end']
             try:
-                video_landmarks = self.extract_video_landmarks(video_path, start, end)
+                video_landmarks, width, height, fps = self.extract_video_landmarks(video_path, start, end)
                 if video_landmarks is not None:
-                    saved_data = {**item, 'landmarks': video_landmarks}
+                    saved_data = { **item, 'width': width, 'height': height, 'fps': fps, 'landmarks': video_landmarks }
                     landmarks_dict[video_path.stem] = saved_data
 
                     # npy_path = output_dir / f'{video_path.stem}.npy'
