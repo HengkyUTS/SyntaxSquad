@@ -114,7 +114,12 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
             print(f'Parsed metadata saved to {self.metadata_path}. Total videos: {len(self.parsed_metadata)}')
 
 
-    def extract_wlasl_landmarks(self): # Extract landmarks from WLASL videos and save them to a ClearML dataset.
+    def extract_wlasl_landmarks(self):
+        """
+        Extract landmarks from WLASL videos and save them to a ClearML dataset.
+        This method creates a new ClearML dataset, extracts landmarks from the videos, and uploads the dataset to ClearML.
+        The landmarks are saved in a compressed .npz file, which is then uploaded to the ClearML dataset.
+        """
         dataset = Dataset.create(
             dataset_name=self.clearml_raw_dataset.name, 
             dataset_project='SyntaxSquad', 
@@ -128,9 +133,9 @@ class WLASLLandmarksExtractor(VideoLandmarksExtractor): # Initialize the WLASLVi
             video_path = Path(item['video_path'])
             start, end = item['frame_start'], item['frame_end']
             try:
-                video_landmarks = self.extract_video_landmarks(video_path, start, end)
+                video_landmarks, width, height, fps = self.extract_video_landmarks(video_path, start, end)
                 if video_landmarks is not None:
-                    saved_data = {**item, 'landmarks': video_landmarks}
+                    saved_data = { **item, 'width': width, 'height': height, 'fps': fps, 'landmarks': video_landmarks }
                     landmarks_dict[video_path.stem] = saved_data
 
                     # npy_path = output_dir / f'{video_path.stem}.npy'
