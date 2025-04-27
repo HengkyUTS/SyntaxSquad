@@ -4,12 +4,15 @@ from sklearn.preprocessing import LabelEncoder
 from clearml import Task
 
 # Initialize the ClearML task
-task = Task.init(project_name='SyntaxSquad', task_name='step3_data_transformation', task_type=Task.TaskTypes.data_processing)
+task = Task.init(
+    project_name='SyntaxSquad', task_type=Task.TaskTypes.data_processing,
+    task_name='Step 3: Perform padding or truncation on X_train/X_val/X_test and label encoding on y_train/y_val/y_test'
+)
 args = {
-    'data_splitting_task_id': '9ebed244b2ab4a448bf076e6334279f4',  # ID of the task that performed data splitting
-    'data_augmentation_task_id': '24dcaf9d11fc482f81a34f9a0404f0f6',  # ID of the task that performed data augmentation
-    'max_frames': 195,
-    'pad_value': -100,
+    'data_splitting_task_id': '',  # ID of the task that performed data splitting
+    'data_augmentation_task_id': '',  # ID of the task that performed data augmentation
+    'max_frames': 195, # Maximum number of frames for padding/truncating
+    'pad_value': -100, # Value to pad with
 }
 task.connect(args)
 task.execute_remotely()
@@ -52,3 +55,4 @@ task.upload_artifact('X_test', artifact_object=X_test)
 task.upload_artifact('y_train', artifact_object=y_train)
 task.upload_artifact('y_val', artifact_object=y_val)
 task.upload_artifact('y_test', artifact_object=y_test)
+task.upload_artifact('label_encoder', artifact_object=label_encoder)
