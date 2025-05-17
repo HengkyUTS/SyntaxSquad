@@ -85,7 +85,7 @@ output_model.update_weights(args['weights_name'], upload_uri='https://files.clea
 output_model.publish()
 
 # Calculate the validation metrics with the best weights for HPO
-model = load_model(args['weights_name'])
+model = model.load_weights(args['weights_name'])
 val_loss, val_accuracy, val_top5_accuracy = model.evaluate(val_tf_dataset, batch_size=args['batch_size'], verbose=1)
 task.logger.report_scalar(title='Optimization Metric', value=val_loss, iteration=args['epochs'], series='val_loss')
 task.logger.report_scalar(title='Optimization Metric', value=val_accuracy, iteration=args['epochs'], series='val_accuracy')
