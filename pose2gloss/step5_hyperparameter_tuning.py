@@ -1,5 +1,6 @@
 from clearml import Task
 from clearml.automation import HyperParameterOptimizer, UniformParameterRange, UniformIntegerParameterRange
+from clearml.automation.optuna import OptimizerOptuna
 
 # Initialize the ClearML task
 task = Task.init(
@@ -32,9 +33,10 @@ optimizer = HyperParameterOptimizer(
         UniformParameterRange('General/learning_rate', min_value=2e-4, max_value=1e-3, step_size=2e-4),   # Learning rate
         UniformParameterRange('General/dropout_rate', min_value=0.1, max_value=0.5, step_size=0.1),       # Dropout rate
     ],
-    objective_metric_title=['Optimization Metric', 'Optimization Metric'],
+    objective_metric_title=['Optimization Metric'],
     objective_metric_series=['val_loss', 'val_accuracy'],    # Series name in ClearML
     objective_metric_sign=['min', 'max'],                    # Maximize validation accuracy
+    optimizer_class=OptimizerOptuna                          # Optuna search strategy to perform robust and efficient hyperparameter optimization at scale
     max_number_of_concurrent_tasks=2,                        # Limit concurrent tasks to manage resources
     execution_queue=args['execution_queue'],                 # Queue for running tasks
     optimization_time_limit=args['optimization_time_limit'], # Maximum minutes for the entire optimization process
