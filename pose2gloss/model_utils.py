@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.keras.utils import register_keras_serializable
 from tensorflow.keras.layers import (
     Conv1D, Dropout, ZeroPadding1D, DepthwiseConv1D, Dense, BatchNormalization,
     MultiHeadAttention, Reshape, Add, Masking, GlobalAveragePooling1D
@@ -8,6 +9,7 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
 
 
+@register_keras_serializable()
 class EfficientChannelAttention(tf.keras.layers.Layer):
     def __init__(self, kernel_size=5, **kwargs):
         super().__init__(**kwargs)
@@ -22,6 +24,7 @@ class EfficientChannelAttention(tf.keras.layers.Layer):
         return inputs * tf.sigmoid(x)[:, None, :]
 
 
+@register_keras_serializable()
 class CausalDWConv1D(tf.keras.layers.Layer):
     def __init__(self, kernel_size=17, dilation_rate=1, use_bias=False, depthwise_initializer='glorot_uniform', name='', **kwargs):
         super().__init__(name=name, **kwargs)
@@ -83,13 +86,12 @@ def Conv1DTransformerBlock(x, dim, kernel_size, drop_rate=0.2):
 
 
 def build_and_compile_GISLR(
-    max_frames, num_landmarks=180, num_glosses=100, pad_value=-100, dim=192, kernel_size=17, 
-    conv1d_dropout=0.2, last_dropout=0.2, learning_rate=1e-3, is_training=True
+    max_frames, num_landmarks=180, num_glosses=100, pad_value=-100, dim=192 
+    , kernel_size=17, conv1d_dropout=0.2, last_dropout=0.2, learning_rate=1e-3
 ):
     inputs = tf.keras.Input((max_frames, num_landmarks, 3)) # 180 landmarks with 3 coordinates
     x = Reshape((max_frames, num_landmarks * 3))(inputs)
-
-    if is_training: x = Masking(mask_value=pad_value)(x)
+    x = Masking(mask_value=pad_value)(x)
     x = Dense(dim, use_bias=False, name='stem_conv')(x)
     x = BatchNormalization(momentum=0.95)(x)
     x = Conv1DTransformerBlock(x, dim, kernel_size, conv1d_dropout)
