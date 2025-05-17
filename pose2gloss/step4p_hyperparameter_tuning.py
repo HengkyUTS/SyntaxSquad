@@ -1,5 +1,5 @@
 from clearml import Task
-from clearml.automation import HyperParameterOptimizer, UniformParameterRange, UniformIntegerParameterRange
+from clearml.automation import ClearmlJob, HyperParameterOptimizer, UniformParameterRange, UniformIntegerParameterRange
 from clearml.automation.optuna import OptimizerOptuna
 
 # Initialize the ClearML task
@@ -8,13 +8,15 @@ task = Task.init(
     task_name='Step 4+: Hyperparameter Optimization for Pose-to-Gloss Model',
 )
 args = {
-    'model_training_template_task_id': '4736c6cc2e444fc39c498daf139e3bcc', # ID of the "template" task that performed model training
+    'data_transformation_task_id': '', # ID of the task that performed data transformation
+    'model_training_template_task_id': '', # ID of the "template" task that performed model training
     'gpu_queue': 'Remote_GPU_queue', # The execution queue to use for launching Tasks (experiments)
     'max_iteration_per_job': 100,    # Maximum number of epochs per job
     'total_max_jobs': 2, # Maximum number of jobs to launch for the optimization
+    'weights_name': 'wlasl100.keras', # Weights file name
 }
 task.connect(args)
-# task.execute_remotely()
+task.execute_remotely()
 
 # Callback function for job completion
 def job_complete_callback(job_id, objective_value, objective_iteration, job_parameters, top_performance_job_id):
@@ -23,16 +25,27 @@ def job_complete_callback(job_id, objective_value, objective_iteration, job_para
     print(f'Parameters: {job_parameters}\n')
 
 
+# Override the base task parameters
+base_task = ClearmlJob(
+    base_task_id=args['model_training_template_task_id'],
+    parameter_override={
+        'data_transformation_task_id': args['data_transformation_task_id'],
+        'weights_name': args['data_transformation_task_id']
+    },
+    disable_clone_task=True, # Use the base_task_id directly (base-task must be in draft-mode / created)
+)
+
 # Initialize HyperParameterOptimizer
 hpo = HyperParameterOptimizer(
-    base_task_id=args['model_training_template_task_id'],    # The Task ID to be used as template experiment to optimize
+    base_task_id=base_task.task_id(),                        # The Task ID to be used as template experiment to optimize
     hyper_parameters=[
         UniformIntegerParameterRange('General/batch_size', min_value=128, max_value=256, step_size=128),
         UniformParameterRange('General/learning_rate', min_value=2e-4, max_value=1e-3, step_size=2e-4),
         UniformParameterRange('General/conv1d_dropout', min_value=0.1, max_value=0.5, step_size=0.1), 
         UniformParameterRange('General/last_dropout', min_value=0.1, max_value=0.5, step_size=0.1),
+        UniformIntegerParameterRange('General/reduce_lr_patience', min_value=2, max_value=5, step_size=1),
     ],
-    objective_metric_title=['Best Metrics', 'Best Metrics'],
+    objective_metric_title=['Best Metrics', 'Best Metrics'], # Multiple objective metrics to optimize
     objective_metric_series=['val_loss', 'val_accuracy'],    # Series name in ClearML
     objective_metric_sign=['min', 'max'],                    # Maximize validation accuracy
     optimizer_class=OptimizerOptuna,                         # Optuna search strategy to perform robust and efficient hyperparameter optimization at scale
@@ -40,7 +53,7 @@ hpo = HyperParameterOptimizer(
     execution_queue=args['gpu_queue'],                       # Queue for running tasks
     optimization_time_limit=None,                            # Maximum minutes for the entire optimization process
     save_top_k_tasks_only=2,                                 # Top K performing Tasks will be kept, the others will be archived
-    max_iteration_per_job=args['max_iteration_per_job']      # Maxiumum number of reported iterations for the specified objective
+    max_iteration_per_job=args['max_iteration_per_job'],     # Maxiumum number of reported iterations for the specified objective
     total_max_jobs=args['total_max_jobs'],                   # Maximum number of jobs to launch for the optimization
     pool_period_min=1.0,                                     # Check the experiments every 1 min
     time_limit_per_job=30,                                   # Maximum execution time per single job in minutes
