@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras.mixed_precision as mixed_precision
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback
+from tensorflow.keras.models import load_model
 from clearml import Task, OutputModel
 from model_utils import build_and_compile_GISLR, prepare_tf_dataset
 
@@ -19,7 +20,7 @@ args = {
     'learning_rate': 0.001, # Learning rate for the optimizer
     'conv1d_dropout': 0.2, # Dropout rate for Conv1DBlock layers
     'last_dropout': 0.2, # Dropout rate before the final layer
-    'weights_name': 'wlasl100.h5', # Weights file name
+    'weights_name': 'wlasl100.keras', # Weights file name
     'reduce_lr_patience': 5, # Patience for ReduceLROnPlateau
     'reduce_lr_min_lr': 1e-6, # Minimum learning rate for ReduceLROnPlateau
     'reduce_lr_factor': 0.7, # Factor for ReduceLROnPlateau
@@ -56,7 +57,7 @@ model = build_and_compile_GISLR(
     args['max_frames'], num_landmarks=num_landmarks, num_glosses=num_glosses, pad_value=args['pad_value'], 
     conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'], learning_rate=args['learning_rate'],
 )
-model.summary()
+task.logger.report_text(model.summary())
 
 # Train the model
 history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks = [
@@ -82,3 +83,11 @@ history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks 
 output_model = OutputModel(task=task)
 output_model.update_weights(args['weights_name'], upload_uri='https://files.clear.ml')
 output_model.publish()
+
+# Calculate the validation metrics with the best weights for HPO
+model = load_model(args['weights_name'])
+val_loss, val_accuracy, val_top5_accuracy = model.evaluate(val_tf_dataset, batch_size=args['batch_size'], verbose=1)
+task.logger.report_scalar(title='Optimization Metric', value=val_loss, iteration=0, series='val_loss')
+task.logger.report_scalar(title='Optimization Metric', value=val_accuracy, iteration=0, series='val_accuracy')
+task.logger.report_scalar(title='Optimization Metric', value=val_top5_accuracy, iteration=0, series='val_top5_accuracy')
+print(f'Best val_loss: {val_loss}, Best val_accuracy: {val_accuracy}, Best val_top5_accuracy: {val_top5_accuracy}')
