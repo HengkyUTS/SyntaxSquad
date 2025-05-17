@@ -8,12 +8,19 @@ task = Task.init(
     task_name='Step 4+: Hyperparameter Optimization for Pose-to-Gloss Model',
 )
 args = {
-    'data_transformation_task_id': '', # ID of the task that performed data transformation
     'model_training_template_task_id': '', # ID of the "template" task that performed model training
-    'gpu_queue': 'Remote_GPU_queue', # The execution queue to use for launching Tasks (experiments)
+    'execution_queue': '', # The execution queue to use for launching Tasks (experiments)
     'max_iteration_per_job': 100,    # Maximum number of epochs per job
     'total_max_jobs': 2, # Maximum number of jobs to launch for the optimization
+
+    # Parameters from the model training task, not including the ones that are optimized
+    'data_transformation_task_id': '', # ID of the task that performed data transformation
+    'max_frames': 195, # Maximum number of frames for padding/truncating
+    'pad_value': -100, # Value to pad with
+    'epochs': 100, # Number of epochs for training
     'weights_name': 'wlasl100.keras', # Weights file name
+    'reduce_lr_min_lr': 1e-6, # Minimum learning rate for ReduceLROnPlateau
+    'reduce_lr_factor': 0.7, # Factor for ReduceLROnPlateau
 }
 task.connect(args)
 task.execute_remotely()
@@ -30,7 +37,12 @@ base_task = ClearmlJob(
     base_task_id=args['model_training_template_task_id'],
     parameter_override={
         'data_transformation_task_id': args['data_transformation_task_id'],
-        'weights_name': args['data_transformation_task_id']
+        'max_frames': args['max_frames'],
+        'pad_value': args['pad_value'],
+        'epochs': args['epochs'],
+        'weights_name': args['weights_name'],
+        'reduce_lr_min_lr': args['reduce_lr_min_lr'],
+        'reduce_lr_factor': args['reduce_lr_factor'],
     },
     disable_clone_task=True, # Use the base_task_id directly (base-task must be in draft-mode / created)
 )
@@ -50,7 +62,7 @@ hpo = HyperParameterOptimizer(
     objective_metric_sign=['min', 'max'],                    # Maximize validation accuracy
     optimizer_class=OptimizerOptuna,                         # Optuna search strategy to perform robust and efficient hyperparameter optimization at scale
     max_number_of_concurrent_tasks=2,                        # Limit concurrent tasks to manage resources
-    execution_queue=args['gpu_queue'],                       # Queue for running tasks
+    execution_queue=args['execution_queue'],                 # The execution queue to use for launching Tasks (experiments)
     optimization_time_limit=None,                            # Maximum minutes for the entire optimization process
     save_top_k_tasks_only=2,                                 # Top K performing Tasks will be kept, the others will be archived
     max_iteration_per_job=args['max_iteration_per_job'],     # Maxiumum number of reported iterations for the specified objective
