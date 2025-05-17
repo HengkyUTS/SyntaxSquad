@@ -33,7 +33,7 @@ optimizer = HyperParameterOptimizer(
         UniformParameterRange('General/learning_rate', min_value=2e-4, max_value=1e-3, step_size=2e-4),   # Learning rate
         UniformParameterRange('General/dropout_rate', min_value=0.1, max_value=0.5, step_size=0.1),       # Dropout rate
     ],
-    objective_metric_title=['Optimization Metric'],
+    objective_metric_title=['Optimization Metric', 'Optimization Metric'],
     objective_metric_series=['val_loss', 'val_accuracy'],    # Series name in ClearML
     objective_metric_sign=['min', 'max'],                    # Maximize validation accuracy
     optimizer_class=OptimizerOptuna,                         # Optuna search strategy to perform robust and efficient hyperparameter optimization at scale
