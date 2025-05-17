@@ -27,7 +27,7 @@ def job_complete_callback(job_id, objective_value, objective_iteration, job_para
 optimizer = HyperParameterOptimizer(
     base_task_id=args['model_training_template_task_id'],    # The Task ID to be used as template experiment to optimize
     hyper_parameters=[
-        UniformIntegerParameterRange('General/num_epochs', min_value=100, max_value=args['max_epoch_per_job'], step_size=100),  # Number of epochs
+        UniformIntegerParameterRange('General/num_epochs', min_value=100, max_value=args['max_iteration_per_jobs'], step_size=100),  # Number of epochs
         UniformIntegerParameterRange('General/batch_size', min_value=64, max_value=64, step_size=256),    # Batch size
         UniformParameterRange('General/learning_rate', min_value=2e-4, max_value=1e-3, step_size=2e-4),   # Learning rate
         UniformParameterRange('General/dropout_rate', min_value=0.1, max_value=0.5, step_size=0.1),       # Dropout rate
@@ -53,9 +53,9 @@ best_job = optimizer.get_top_experiments(top_k=1)
 if best_job:
     best_job = best_job[0]
     best_hyper_parameters, best_metrics = best_job.hyper_parameters, best_job.get_last_scalar_metrics()
-    print(f'Best Job: {best_job.id}')
-    print(f'Best HPO Parameters: {best_hyper_parameters}')
-    print(f'Best Metrics: {best_metrics}')
+    print('Best Job:', best_job.id)
+    print('Best HPO Parameters:', best_hyper_parameters)
+    print('Best Metrics:', best_metrics)
     task.upload_artifact('best_hyper_parameters', artifact_object=best_hyper_parameters)
     task.upload_artifact('best_metrics', artifact_object=best_metrics)
 else: print('No top experiments found.')
