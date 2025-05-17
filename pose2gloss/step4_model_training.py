@@ -1,7 +1,6 @@
 import tensorflow as tf
 import tensorflow.keras.mixed_precision as mixed_precision
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, LambdaCallback
-from tensorflow.keras.models import load_model
 from clearml import Task, OutputModel
 from model_utils import build_and_compile_GISLR, prepare_tf_dataset
 
@@ -57,7 +56,7 @@ model = build_and_compile_GISLR(
     args['max_frames'], num_landmarks=num_landmarks, num_glosses=num_glosses, pad_value=args['pad_value'], 
     conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'], learning_rate=args['learning_rate'],
 )
-task.logger.report_text(model.summary())
+model.summary()
 
 # Train the model
 history = model.fit(train_tf_dataset, validation_data=val_tf_dataset, callbacks = [
@@ -85,7 +84,7 @@ output_model.update_weights(args['weights_name'], upload_uri='https://files.clea
 output_model.publish()
 
 # Calculate the validation metrics with the best weights for HPO
-model = model.load_weights(args['weights_name'])
+model.load_weights(args['weights_name'])
 val_loss, val_accuracy, val_top5_accuracy = model.evaluate(val_tf_dataset, batch_size=args['batch_size'], verbose=1)
 task.logger.report_scalar(title='Optimization Metric', value=val_loss, iteration=args['epochs'], series='val_loss')
 task.logger.report_scalar(title='Optimization Metric', value=val_accuracy, iteration=args['epochs'], series='val_accuracy')

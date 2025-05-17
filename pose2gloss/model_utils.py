@@ -9,7 +9,7 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
 
 
-# @register_keras_serializable()
+@register_keras_serializable()
 class EfficientChannelAttention(tf.keras.layers.Layer):
     def __init__(self, kernel_size=5, **kwargs):
         super().__init__(**kwargs)
@@ -24,7 +24,7 @@ class EfficientChannelAttention(tf.keras.layers.Layer):
         return inputs * tf.sigmoid(x)[:, None, :]
 
 
-# @register_keras_serializable()
+@register_keras_serializable()
 class CausalDWConv1D(tf.keras.layers.Layer):
     def __init__(self, kernel_size=17, dilation_rate=1, use_bias=False, depthwise_initializer='glorot_uniform', name='', **kwargs):
         super().__init__(name=name, **kwargs)
