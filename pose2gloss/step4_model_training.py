@@ -85,8 +85,9 @@ output_model.publish()
 
 # Calculate the validation metrics with the best weights for HPO
 model.load_weights(args['weights_name'])
+last_iter = args['epochs'] - 1
 val_loss, val_accuracy, val_top5_accuracy = model.evaluate(val_tf_dataset, batch_size=args['batch_size'], verbose=1)
-task.logger.report_scalar(title='Best Metrics', value=val_loss, iteration=args['epochs'], series='val_loss')
-task.logger.report_scalar(title='Best Metrics', value=val_accuracy, iteration=args['epochs'], series='val_accuracy')
-task.logger.report_scalar(title='Best Metrics', value=val_top5_accuracy, iteration=args['epochs'], series='val_top5_accuracy')
+task.logger.report_scalar(title='Best Metrics', value=val_loss, iteration=last_iter, series='val_loss')
+task.logger.report_scalar(title='Best Metrics', value=val_accuracy, iteration=last_iter, series='val_accuracy')
+task.logger.report_scalar(title='Best Metrics', value=val_top5_accuracy, iteration=last_iter, series='val_top5_accuracy')
 print(f'Best val_loss: {val_loss}, Best val_accuracy: {val_accuracy}, Best val_top5_accuracy: {val_top5_accuracy}')
