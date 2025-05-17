@@ -4,6 +4,7 @@ from tensorflow.keras.layers import (
     Conv1D, Dropout, ZeroPadding1D, DepthwiseConv1D, Dense, BatchNormalization,
     MultiHeadAttention, Reshape, Add, Masking, GlobalAveragePooling1D
 )
+from tensorflow.keras.applications import ConvNeXtTiny
 from tensorflow.keras.optimizers import AdamW
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseTopKCategoricalAccuracy
