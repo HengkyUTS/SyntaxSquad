@@ -5,7 +5,7 @@ from clearml.automation.optuna import OptimizerOptuna
 # Initialize the ClearML task
 task = Task.init(
     project_name='SyntaxSquad', task_type=Task.TaskTypes.optimizer, reuse_last_task_id=False,
-    task_name='Step 4+: Hyperparameter Optimization for Pose-to-Gloss Model',
+    task_name='Step 4: Hyperparameter Optimization for Pose-to-Gloss Model',
 )
 args = {
     'model_training_template_task_id': '', # ID of the "template" task that performed model training
@@ -64,7 +64,7 @@ hpo = HyperParameterOptimizer(
     max_number_of_concurrent_tasks=2,                        # Limit concurrent tasks to manage resources
     execution_queue=args['execution_queue'],                 # The execution queue to use for launching Tasks (experiments)
     optimization_time_limit=None,                            # Maximum minutes for the entire optimization process
-    save_top_k_tasks_only=2,                                 # Top K performing Tasks will be kept, the others will be archived
+    save_top_k_tasks_only=1,                                 # Top K performing Tasks will be kept, the others will be archived
     max_iteration_per_job=args['max_iteration_per_job'],     # Maxiumum number of reported iterations for the specified objective
     total_max_jobs=args['total_max_jobs'],                   # Maximum number of jobs to launch for the optimization
     pool_period_min=1.0,                                     # Check the experiments every 1 min
