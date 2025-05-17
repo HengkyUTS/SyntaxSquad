@@ -7,7 +7,7 @@ task = Task.init(
     task_name='Step 5: Hyperparameter Optimization for Pose-to-Gloss Model',
 )
 args = {
-    'model_training_template_task_id': '2fafe1bb95bb41259393118c1590e4e9', # ID of the "template" task that performed model training
+    'model_training_template_task_id': 'be73c0a2fe814523a54c4bf01fe9a092', # ID of the "template" task that performed model training
     'execution_queue': 'Remote_GPU_queue', # The execution queue to use for launching Tasks (experiments)
     'optimization_time_limit': None, # Maximum minutes for the entire optimization process
     'max_iteration_per_job': 200,  # Maximum number of epochs per job
@@ -39,7 +39,7 @@ optimizer = HyperParameterOptimizer(
     execution_queue=args['execution_queue'],                 # Queue for running tasks
     optimization_time_limit=args['optimization_time_limit'], # Maximum minutes for the entire optimization process
     save_top_k_tasks_only=2,                                 # Top K performing Tasks will be kept, the others will be archived
-    max_iteration_per_job=args['max_epoch_per_job'],         # Maxiumum number of reported iterations for the specified objective
+    max_iteration_per_job=args['max_iteration_per_job'],     # Maxiumum number of reported iterations for the specified objective
     total_max_jobs=args['total_max_jobs'],                   # Maximum number of jobs to launch for the optimization
     pool_period_min=1.0,                                     # Check the experiments every 1 min
 )
