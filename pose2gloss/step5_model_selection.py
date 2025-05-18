@@ -1,28 +1,19 @@
 import pandas as pd
 from clearml import Task
-from tensorflow.keras.models import load_model
-from model_utils import *
 
 # Initialize the ClearML task
-Task.add_requirements('nvidia-cudnn-cu12', '9.3.0.75')
 task = Task.init(
-    project_name='SyntaxSquad', task_type=Task.TaskTypes.testing, 
-    task_name='Step 5: Model selection for HPO top performers based on validation metrics',
+    project_name='SyntaxSquad', task_type=Task.TaskTypes.qc, 
+    task_name='Step 5: Models selection based on validation metrics',
 )
 args = {
-    'data_transformation_task_id': '', # ID of the task that performed data transformation
-    'hpo_task_ids': '', # List of task IDs for the hyperparameter optimization tasks
+    'model_training_task_ids': '', # List of task IDs for the hyperparameter optimization tasks
 }
 task.connect(args)
 task.execute_remotely()
 
-# Get the artifacts from data transformation task and Prepare the TF dataset for efficient data loading
-data_transformation_task = Task.get_task(task_id=args['data_transformation_task_id'])
-X_val, y_val = data_transformation_task.artifacts['X_val'].get(), data_transformation_task.artifacts['y_val'].get()
-val_tf_dataset = prepare_tf_dataset(X_val, y_val, batch_size=128, shuffle=False)
-
 # Initialize variables to keep track of the best model
-best_model_training_task_id = args['hpo_task_ids'][0]
+best_model_training_task_id = args['model_training_task_ids'][0]
 best_val_accuracy = 0.0
 metrics_table = {
     'Task ID': [],
@@ -33,17 +24,16 @@ metrics_table = {
 }
 
 # Load the models from the HPO tasks and evaluate them on validation set to choose the best one
-for hpo_task_id in args['hpo_task_ids']:
-    hpo_task = Task.get_task(task_id=hpo_task_id)
-    model_name = hpo_task.get_parameter('model_name')
-    hpo_top_experiment_id = hpo_task.get_reported_console_output()[-1]
-    hpo_top_experiment = Task.get_task(task_id=hpo_top_experiment_id)
-    model = load_model(hpo_top_experiment.models['output'][-1].get_local_copy()) # Last snapshot
-    task.logger.report_text(model.summary())
+for model_training_task_id in args['model_training_task_ids']:
+    model_training_task = Task.get_task(task_id=model_training_task_id)
+    model_name = model_training_task.get_parameter('General/model_name')
 
-    # Evaluation on validation set
-    val_loss, val_accuracy, val_top5_accuracy = model.evaluate(val_tf_dataset, batch_size=128, verbose=1)
-    metrics_table['Task ID'].append(hpo_top_experiment_id)
+    val_metrics = model_training_task.get_last_scalar_metrics()['Best Metrics']
+    val_loss = val_metrics['val_loss']['last']
+    val_accuracy = val_metrics['val_accuracy']['last']
+    val_top5_accuracy = val_metrics['val_top5_accuracy']['last']
+
+    metrics_table['Task ID'].append(model_training_task_id)
     metrics_table['Model Name'].append(model_name)
     metrics_table['Validation Loss'].append(val_loss)
     metrics_table['Validation Accuracy'].append(val_accuracy)
@@ -51,10 +41,18 @@ for hpo_task_id in args['hpo_task_ids']:
 
     if val_accuracy > best_val_accuracy:
         best_val_accuracy = val_accuracy
-        best_model_training_task_id = hpo_top_experiment_id
+        best_model_training_task_id = model_training_task_id
 
+task.set_parameter('best_model_training_task_id', best_model_training_task_id)
 task.logger.report_table(
     table_plot=pd.DataFrame(metrics_table), series='Statistics',
-    title='Model evaluation metrics for HPO top performers on validation set'
+    title='Model evaluation metrics on validation Set'
 )
-task.logger.report_single_value('best_model_training_task_id', best_model_training_task_id)
+best_index = metrics_table['Task ID'].index(best_model_training_task_id)
+print( 
+    f'Best Model Training Task ID: {best_model_training_task_id}\n'
+    f'Best Model Name: {metrics_table["Model Name"][best_index]}\n'
+    f'Validation Loss: {metrics_table["Validation Loss"][best_index]}\n'
+    f'Validation Top-5 Accuracy: {metrics_table["Validation Top-5 Accuracy"][best_index]}\n'
+    f'Validation Accuracy: {best_val_accuracy}'
+)
