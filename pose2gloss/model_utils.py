@@ -110,6 +110,22 @@ def build_and_compile_GISLR(
     return model
 
 
+def build_and_compile_ConvNeXtTiny(max_frames, num_landmarks=180, num_glosses=100, learning_rate=1e-3):
+    model = ConvNeXtTiny(
+        input_shape=(max_frames, num_landmarks, 3),
+        include_top=True, weights=None,
+        include_preprocessing=False,
+        classes=num_glosses,
+        classifier_activation=None,
+    )
+    model.compile(
+        optimizer=AdamW(learning_rate=learning_rate),
+        loss=SparseCategoricalCrossentropy(from_logits=True),
+        metrics=['accuracy', SparseTopKCategoricalAccuracy(k=5, name='top5_accuracy')],
+    )
+    return model
+
+
 def pose_based_normalize(video_landmarks, label, scale_by_shoulder=False):
     nose_center = video_landmarks[:, 49, :]
     translated_landmarks = video_landmarks - nose_center[:, None, :]

@@ -61,12 +61,8 @@ if args['model_name'] == 'GISLR':
         conv1d_dropout=args['conv1d_dropout'], last_dropout=args['last_dropout'], learning_rate=args['learning_rate'],
     )
 elif args['model_name'] == 'ConvNeXtTiny':
-    model = ConvNeXtTiny(
-        input_shape=(args['max_frames'], num_landmarks, 3),
-        include_top=True, weights=None,
-        include_preprocessing=False,
-        classes=num_glosses,
-        classifier_activation=None,
+    model = build_and_compile_ConvNeXtTiny(
+        args['max_frames'], num_landmarks=num_landmarks, num_glosses=num_glosses, learning_rate=args['learning_rate'],
     )
 else: raise ValueError(f'Unknown model name: {args["model_name"]}')
 model.summary()
