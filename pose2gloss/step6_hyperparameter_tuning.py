@@ -28,7 +28,7 @@ model_selection_task = Task.get_task(task_id=args['model_selection_task_id'])
 best_job_id = model_selection_task.get_parameter('General/best_model_training_task_id')
 base_model_training_task = Task.get_task(task_id=best_job_id)
 best_hyperparameters = base_model_training_task.get_parameters()
-best_accuracy = base_model_training_task.get_last_scalar_metrics()['Best Metrics']['val_accuracy']['last']
+best_metrics = base_model_training_task.get_last_scalar_metrics()['Best Metrics']
 model_name = base_model_training_task.get_parameter('General/model_name')
 
 hyper_parameters = [
@@ -68,7 +68,7 @@ best_hpo_job = hpo.get_top_experiments(top_k=1)
 if best_hpo_job:
     best_hpo_job = best_hpo_job[0]
     best_hpo_metrics = best_hpo_job.get_last_scalar_metrics()['Best Metrics']
-    if best_hpo_metrics['val_accuracy']['last'] > best_accuracy:
+    if best_hpo_metrics['val_loss']['last'] < best_metrics['val_loss']['last']:
         best_job_id = best_hpo_job.id
         best_hyperparameters = best_hpo_job.get_parameters()
         best_metrics = best_hpo_metrics
