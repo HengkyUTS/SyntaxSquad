@@ -26,7 +26,7 @@ gloss_labels = data_transformation_task.artifacts['label_encoder'].get().classes
 hyperparameter_tuning_task = Task.get_task(task_id=args['hyperparameter_tuning_task_id'])
 best_job_id = hyperparameter_tuning_task.get_parameter('General/best_job_id')
 best_model_training_task = Task.get_task(task_id=best_job_id)
-batch_size = best_model_training_task.get_parameter('General/batch_size')
+batch_size = int(best_model_training_task.get_parameter('General/batch_size'))
 model = load_model(best_model_training_task.models['output'][-1].get_local_copy()) # Last snapshot
 model.summary()
 
