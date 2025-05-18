@@ -8,7 +8,7 @@ task = Task.init(
     task_name='Step 5: Model selection based on validation metrics',
 )
 args = {
-    'model_training_task_ids': '', # List of task IDs for the hyperparameter optimization tasks
+    'model_training_task_ids': [], # List of task IDs for the hyperparameter optimization tasks
 }
 task.connect(args)
 task.execute_remotely()
