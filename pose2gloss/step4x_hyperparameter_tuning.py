@@ -96,6 +96,6 @@ if best_job:
         'best_hyperparameters': best_hyperparameters,
         'best_metrics': best_metrics,
     })
-    task.logger.report_single_value('best_job_id', best_job.id)
+    task.logger.report_text(best_job.id)
 else: print('No top experiments found.')
 hpo.stop() # Make sure background optimization stopped

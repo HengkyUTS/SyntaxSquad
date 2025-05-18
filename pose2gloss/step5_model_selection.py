@@ -36,7 +36,7 @@ metrics_table = {
 for hpo_task_id in args['hpo_task_ids']:
     hpo_task = Task.get_task(task_id=hpo_task_id)
     model_name = hpo_task.get_parameter('model_name')
-    hpo_top_experiment_id = hpo_task.get_reported_single_value('best_job_id')
+    hpo_top_experiment_id = hpo_task.get_reported_console_output()[-1]
     hpo_top_experiment = Task.get_task(task_id=hpo_top_experiment_id)
     model = load_model(hpo_top_experiment.models['output'][-1].get_local_copy()) # Last snapshot
     task.logger.report_text(model.summary())
