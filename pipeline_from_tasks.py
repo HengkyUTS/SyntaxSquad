@@ -65,14 +65,12 @@ pipe.add_step(
 
 pipe.add_step(
     name='step3_data_transformation',
-    # parents=['step1_data_splitting', 'step2_data_augmentation'],
+    parents=['step1_data_splitting', 'step2_data_augmentation'],
     base_task_name='Step 3: Perform padding or truncation on X_train/X_val/X_test and label encoding on y_train/y_val/y_test',
     base_task_project='SyntaxSquad',
     parameter_override={
-        # 'General/data_splitting_task_id': '${step1_data_splitting.id}',
-        # 'General/data_augmentation_task_id': '${step2_data_augmentation.id}',
-        'General/data_splitting_task_id': '34b54d2ae32f49b38f94cfdc19770402',
-        'General/data_augmentation_task_id': '4c78e5197fbe4131882747718ae15417',
+        'General/data_splitting_task_id': '${step1_data_splitting.id}',
+        'General/data_augmentation_task_id': '${step2_data_augmentation.id}',
         'General/max_frames': '${pipeline.max_frames}',
         'General/pad_value': '${pipeline.pad_value}',
     },
