@@ -5,7 +5,7 @@ from clearml.automation.optuna import OptimizerOptuna
 # Initialize the ClearML task
 task = Task.init(
     project_name='SyntaxSquad', task_type=Task.TaskTypes.optimizer, reuse_last_task_id=False,
-    task_name='Step 4: Hyperparameter Optimization for Pose-to-Gloss Model',
+    task_name='Step 4: Hyperparameter optimization for Pose-to-Gloss model',
 )
 args = {
     'model_training_template_task_id': '', # ID of the "template" task that performed model training
@@ -91,7 +91,11 @@ if best_job:
     print('Best Job:', best_job.id)
     print('Best HPO Parameters:', best_hyperparameters)
     print('Best Metrics:', best_metrics)
-    task.upload_artifact('best_hyperparameters', artifact_object=best_hyperparameters)
-    task.upload_artifact('best_metrics', artifact_object=best_metrics)
+    task.upload_artifact('best_results', artifact_object={
+        'best_job_id': best_job.id,
+        'best_hyperparameters': best_hyperparameters,
+        'best_metrics': best_metrics,
+    })
+    task.logger.report_single_value('best_job_id', best_job.id)
 else: print('No top experiments found.')
 hpo.stop() # Make sure background optimization stopped
