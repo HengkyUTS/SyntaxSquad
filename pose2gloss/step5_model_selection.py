@@ -1,4 +1,3 @@
-import ast
 import pandas as pd
 from clearml import Task
 
@@ -14,8 +13,7 @@ task.connect(args)
 task.execute_remotely()
 
 # Initialize variables to keep track of the best model
-model_training_task_ids = ast.literal_eval(args['model_training_task_ids'])
-best_model_training_task_id = model_training_task_ids[0]
+best_model_training_task_id = args['model_training_task_ids'][0]
 best_val_accuracy = 0.0
 metrics_table = {
     'Task ID': [],
@@ -26,7 +24,7 @@ metrics_table = {
 }
 
 # Load the models from the HPO tasks and evaluate them on validation set to choose the best one
-for model_training_task_id in model_training_task_ids:
+for model_training_task_id in args['model_training_task_ids']:
     model_training_task = Task.get_task(task_id=model_training_task_id)
     model_name = model_training_task.get_parameter('General/model_name')
 
