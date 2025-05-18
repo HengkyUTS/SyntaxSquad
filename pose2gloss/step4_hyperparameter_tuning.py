@@ -9,7 +9,6 @@ task = Task.init(
 )
 args = {
     'model_training_template_task_id': '', # ID of the "template" task that performed model training
-    'max_number_of_concurrent_tasks': 2, # Limit concurrent tasks to manage resources
     'execution_queue': '', # The execution queue to use for launching Tasks (experiments)
     'max_iteration_per_job': 100,    # Maximum number of epochs per job
     'total_max_jobs': 2, # Maximum number of jobs to launch for the optimization
@@ -56,7 +55,7 @@ hyper_parameters=[
     UniformParameterRange('General/learning_rate', min_value=2e-4, max_value=1e-3, step_size=2e-4),
     UniformIntegerParameterRange('General/reduce_lr_patience', min_value=2, max_value=5, step_size=1),
 ]
-if args['model_name'] == 'GISLR': hyper_parameters.append([
+if args['model_name'] == 'GISLR': hyper_parameters.extend([
     UniformParameterRange('General/conv1d_dropout', min_value=0.1, max_value=0.5, step_size=0.1), 
     UniformParameterRange('General/last_dropout', min_value=0.1, max_value=0.5, step_size=0.1),
 ])
@@ -70,7 +69,7 @@ hpo = HyperParameterOptimizer(
     objective_metric_series=['val_loss', 'val_accuracy'],    # Series name in ClearML
     objective_metric_sign=['min', 'max'],                    # Maximize validation accuracy
     optimizer_class=OptimizerOptuna,                         # Optuna search strategy to perform robust and efficient hyperparameter optimization at scale
-    max_number_of_concurrent_tasks=args['max_number_of_concurrent_tasks'],
+    max_number_of_concurrent_tasks=2,                        # Limit concurrent tasks to manage resources
     execution_queue=args['execution_queue'],                 # The execution queue to use for launching Tasks (experiments)
     optimization_time_limit=None,                            # Maximum minutes for the entire optimization process
     save_top_k_tasks_only=1,                                 # Top K performing Tasks will be kept, the others will be archived
