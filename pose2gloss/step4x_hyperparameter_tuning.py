@@ -5,7 +5,7 @@ from clearml.automation.optuna import OptimizerOptuna
 # Initialize the ClearML task
 task = Task.init(
     project_name='SyntaxSquad', task_type=Task.TaskTypes.optimizer, reuse_last_task_id=False,
-    task_name='Step 4: Hyperparameter optimization for Pose-to-Gloss model',
+    task_name='Step 4X: Hyperparameter optimization for Pose-to-Gloss model',
 )
 args = {
     'model_training_template_task_id': '', # ID of the "template" task that performed model training
