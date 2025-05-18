@@ -7,7 +7,7 @@ from model_utils import *
 
 # Initialize the ClearML task
 Task.add_requirements('nvidia-cudnn-cu12', '9.3.0.75')
-task = Task.init(project_name='SyntaxSquad', task_type=Task.TaskTypes.testing, task_name='Step 5: Evaluate the model')
+task = Task.init(project_name='SyntaxSquad', task_type=Task.TaskTypes.testing, task_name='Step 7: Evaluate the model on all 3 subsets')
 args = {
     'data_transformation_task_id': '', # ID of the task that performed data transformation
     'hyperparameter_tuning_task_id': '', # ID of the task that performed hyperparameter tuning
