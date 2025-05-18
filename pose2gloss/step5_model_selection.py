@@ -4,7 +4,7 @@ from clearml import Task
 # Initialize the ClearML task
 task = Task.init(
     project_name='SyntaxSquad', task_type=Task.TaskTypes.qc, 
-    task_name='Step 5: Models selection based on validation metrics',
+    task_name='Step 5: Model selection based on validation metrics',
 )
 args = {
     'model_training_task_ids': '', # List of task IDs for the hyperparameter optimization tasks
