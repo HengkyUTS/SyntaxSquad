@@ -23,11 +23,15 @@ def job_complete_callback(job_id, objective_value, objective_iteration, job_para
     print(f'Parameters: {job_parameters}\n')
 
 
-# Load the model selection task and define hyperparameters search space
+# Load the selected model training task and define hyperparameters search space
 model_selection_task = Task.get_task(task_id=args['model_selection_task_id'])
-model_name = model_selection_task.get_parameter('General/model_name')
-best_model_training_task_id = model_selection_task.get_parameter('General/best_model_training_task_id')
-hyper_parameters=[
+best_job_id = model_selection_task.get_parameter('General/best_model_training_task_id')
+base_model_training_task = Task.get_task(task_id=best_job_id)
+best_hyperparameters = base_model_training_task.get_parameters()
+best_accuracy = base_model_training_task.get_last_scalar_metrics()['Best Metrics']['val_accuracy']['last']
+model_name = base_model_training_task.get_parameter('General/model_name')
+
+hyper_parameters = [
     UniformIntegerParameterRange('General/batch_size', min_value=128, max_value=256, step_size=128),
     UniformParameterRange('General/learning_rate', min_value=2e-4, max_value=1e-3, step_size=2e-4),
     UniformIntegerParameterRange('General/reduce_lr_patience', min_value=2, max_value=5, step_size=1),
@@ -39,7 +43,7 @@ if model_name == 'GISLR': hyper_parameters.extend([
 
 # Initialize HyperParameterOptimizer
 hpo = HyperParameterOptimizer(
-    base_task_id=best_model_training_task_id,                # The Task ID to be used as template experiment to optimize
+    base_task_id=best_job_id,                               # The Task ID to be used as template experiment to optimize
     hyper_parameters=hyper_parameters,                       # The list of Parameter objects to optimize over
     objective_metric_title=['Best Metrics', 'Best Metrics'], # Multiple objective metrics to optimize
     objective_metric_series=['val_loss', 'val_accuracy'],    # Series name in ClearML
@@ -60,18 +64,24 @@ hpo.start(job_complete_callback=job_complete_callback)
 hpo.wait() # Wait until process is done (notice we are controlling the optimization process in the background)
 
 # Log the best parameters
-best_job = hpo.get_top_experiments(top_k=1)
-if best_job:
-    best_job = best_job[0]
-    best_hyperparameters, best_metrics = best_job.get_parameters(), best_job.get_last_scalar_metrics()['Best Metrics']
-    print('Best Job:', best_job.id)
+best_hpo_job = hpo.get_top_experiments(top_k=1)
+if best_hpo_job:
+    best_hpo_job = best_hpo_job[0]
+    best_hpo_metrics = best_hpo_job.get_last_scalar_metrics()['Best Metrics']
+    if best_hpo_metrics['val_accuracy']['last'] > best_accuracy:
+        best_job_id = best_hpo_job.id
+        best_hyperparameters = best_hpo_job.get_parameters()
+        best_metrics = best_hpo_metrics
+    else: print('No better job found in the optimization process => using the best model from model selection')
+
+    print('Best Job:', best_job_id)
     print('Best HPO Parameters:', best_hyperparameters)
     print('Best Metrics:', best_metrics)
     task.upload_artifact('best_results', artifact_object={
-        'best_job_id': best_job.id,
+        'best_job_id': best_job_id,
         'best_hyperparameters': best_hyperparameters,
         'best_metrics': best_metrics,
     })
-    task.set_parameter('best_job_id', best_job.id)
+    task.set_parameter('best_job_id', best_job_id)
 else: print('No top experiments found.')
 hpo.stop() # Make sure background optimization stopped
