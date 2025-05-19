@@ -27,13 +27,12 @@ jobs:
         run: |
           echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
           echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+          echo "🔎 The name of current branch is ${{ github.ref }} and the repository is ${{ github.repository }}."
 
       - name: 👉 Step 1 Checkout the repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-        run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner. The commit SHA is ${{ github.event.pull_request.head.sha }}."
         
       - name: 👉 Step 2 - Set up Python
         uses: actions/setup-python@v4
