@@ -14,7 +14,7 @@ def check_task_status(task_id, timeout=600):
             if task_status in ['failed', 'stopped']: raise ValueError('Task did not run correctly, check logs in webUI')
             elif task_status == 'in_progress':
                 if task.get_last_iteration() > 0: # Try to get the first iteration metric
-                    task.mark_stopped()
+                    task.mark_stopped(force=True)
                     task.set_archived(True)
                 return True
             time.sleep(5)
