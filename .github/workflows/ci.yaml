@@ -51,7 +51,7 @@ jobs:
           TASK_ID=$(clearml-task \
             --project SyntaxSquad \
             --name 'CI: Test remote runnable' \
-            --branch ${{ github.head_ref }} \
+            --branch ${{ github.head_ref || github.ref_name }} \
             --script cicd/example_task.py \
             --requirements cicd/requirements.txt \
             --skip-task-init --queue "$QUEUE" \
