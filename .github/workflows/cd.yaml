@@ -10,7 +10,6 @@ on:
 jobs:
   execute-pipeline:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     env: # ✅ env: Global environment variables for all steps
       CLEARML_API_HOST: ${{ secrets.CLEARML_API_HOST }}
