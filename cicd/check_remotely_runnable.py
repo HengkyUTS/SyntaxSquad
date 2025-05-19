@@ -16,7 +16,7 @@ def check_task_status(task_id, timeout=600):
                 if task.get_last_iteration() > 0: # Try to get the first iteration metric
                     task.mark_stopped(force=True)
                     task.set_archived(True)
-                return True
+                    return True
             time.sleep(5)
         raise ValueError('Triggered Timeout!')
     return f'Can not find task {task}.\n\n'
