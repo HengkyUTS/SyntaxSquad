@@ -1,0 +1,64 @@
+name: CI Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ assigned, opened, edited, reopened, synchronize ]
+
+jobs:
+  test-remote-runnable:
+    runs-on: ubuntu-latest
+
+    env: # ✅ env: Global environment variables for all steps
+      CLEARML_WEB_HOST: ${{ secrets.CLEARML_WEB_HOST }}
+      CLEARML_FILES_HOST: ${{ secrets.CLEARML_FILES_HOST }}
+      CLEARML_API_HOST: ${{ secrets.CLEARML_API_HOST }}
+      CLEARML_API_ACCESS_KEY: ${{ secrets.CLEARML_API_ACCESS_KEY }}
+      CLEARML_API_SECRET_KEY: ${{ secrets.CLEARML_API_SECRET_KEY }}
+      CLEARML_AGENT_GIT_USER: ${{ secrets.CLEARML_AGENT_GIT_USER }}
+      CLEARML_AGENT_GIT_PASS: ${{ secrets.CLEARML_AGENT_GIT_PASS }}
+      MPLBACKEND: tkagg
+      QUEUE: Remote_CPU
+
+    steps:
+      - name: 👉 Step 0 - Check the event type
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
+      - name: 👉 Step 1 Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+        run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner. The commit SHA is ${{ github.event.pull_request.head.sha }}."
+        
+      - name: 👉 Step 2 - Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11.12'
+
+      - name: 👉 Step 3 - Install ClearML
+        run: |
+          python -m pip install --upgrade pip clearml
+          sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: 👉 Step 4 - Debug ENV
+        run: |
+          echo "CLEARML_API_HOST=$CLEARML_API_HOST"
+          if [ -z "$CLEARML_API_HOST" ]; then echo "❌ HOST is empty!"; exit 1; fi
+          curl -I $CLEARML_API_HOST
+
+      - name: 👉 Step 5 - Make sure the task can run remotely
+        id: launch_task
+        run: |
+          echo "TASK_ID=$(
+            clearml-task --project SyntaxSquad --name 'CI: Test remote runnable' --branch ${{ github.head_ref }} --script cicid/example_task.py --skip-task-init --queue $QUEUE | rg -o 'Task id=(.*) sent' -r '$1'
+          )" >> $GITHUB_OUTPUT
+
+      - name: 👉 Step 6 - Poll for task progress
+        run: |
+          python cid/check_remotely_runnable.py "${{ steps.launch_task.outputs.TASK_ID }}"
+          echo "🍏 This job's status is ${{ job.status }}."
