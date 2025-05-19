@@ -12,14 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env: # ✅ env: Global environment variables for all steps
-      CLEARML_WEB_HOST: ${{ secrets.CLEARML_WEB_HOST }}
-      CLEARML_FILES_HOST: ${{ secrets.CLEARML_FILES_HOST }}
       CLEARML_API_HOST: ${{ secrets.CLEARML_API_HOST }}
       CLEARML_API_ACCESS_KEY: ${{ secrets.CLEARML_API_ACCESS_KEY }}
       CLEARML_API_SECRET_KEY: ${{ secrets.CLEARML_API_SECRET_KEY }}
-      CLEARML_AGENT_GIT_USER: ${{ secrets.CLEARML_AGENT_GIT_USER }}
-      CLEARML_AGENT_GIT_PASS: ${{ secrets.CLEARML_AGENT_GIT_PASS }}
-      MPLBACKEND: tkagg
       QUEUE: Remote_CPU
 
     steps:
@@ -29,7 +24,7 @@ jobs:
           echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
           echo "🔎 The name of current branch is ${{ github.ref }} and the repository is ${{ github.repository }}."
 
-      - name: 👉 Step 1 Checkout the repository
+      - name: 👉 Step 1 - Checkout the repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -59,5 +54,5 @@ jobs:
 
       - name: 👉 Step 6 - Poll for task progress
         run: |
-          python cid/check_remotely_runnable.py "${{ steps.launch_task.outputs.TASK_ID }}"
+          python cicd/check_remotely_runnable.py "${{ steps.launch_task.outputs.TASK_ID }}"
           echo "🍏 This job's status is ${{ job.status }}."
