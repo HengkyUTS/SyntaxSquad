@@ -89,7 +89,7 @@ jobs:
 
       - name: 👉 Step 5 - Assign the latest Pipeline as production if it's better than the current one
         run: |
-          python cicd/production_tagging.py
+          python cicd/pipeline_reports.py
           echo "🍏 This job's status is ${{ job.status }}."
 
 
@@ -101,6 +101,7 @@ jobs:
       CLEARML_API_HOST: ${{ secrets.CLEARML_API_HOST }}
       CLEARML_API_ACCESS_KEY: ${{ secrets.CLEARML_API_ACCESS_KEY }}
       CLEARML_API_SECRET_KEY: ${{ secrets.CLEARML_API_SECRET_KEY }}
+      COMMIT_ID: ${{ github.event.pull_request.head.sha }}
 
     steps:
       - name: 👉 Step 0 - Check the event type
@@ -132,7 +133,7 @@ jobs:
 
       - name: 👉 Step 5 - Comment metrics from step7_model_evaluation of the pipeline
         run: |
-          python cicd/pipeline_reports.py
+          python cicd/production_tagging.py
           echo "🍏 This job's status is ${{ job.status }}."
 
 

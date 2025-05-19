@@ -25,6 +25,7 @@ def compare_and_tag_task(commit_hash): # Compare current performance to best pre
     print(f'Best test_accuracy in the system is: {best_test_accuracy} and current metric is {current_test_accuracy}')
     if current_test_accuracy >= best_test_accuracy:
         print('This means current test_accuracy is better or equal! Tagging as such.')
+        best_pipeline.set_tags(list(set(best_pipeline.get_tags()) - {'production'}))
         current_pipeline.add_tags(['production'])
     else: print('This means current test_accuracy is worse! Not tagging.')
 
