@@ -1,11 +1,13 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.models import load_model
+
 from clearml import Task, PipelineController
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from .schemas import LandmarkRequest, PredictionResponse, GlossPrediction
-from ..pose2gloss.model_utils import build_and_compile_GISLR
+from ..pose2gloss.model_utils import *
 
 
 @asynccontextmanager
@@ -24,8 +26,6 @@ async def lifespan(app: FastAPI):
     MAX_LABELS = int(hyperparameters['Args/max_labels'])
     MAX_FRAMES = int(hyperparameters['Args/max_frames'])
     PAD_VALUE = int(hyperparameters['Args/pad_value'])
-    conv1d_dropout = float(hyperparameters['Args/conv1d_dropout'])
-    last_dropout = float(hyperparameters['Args/last_dropout'])
 
     # Load the label encoder from the data transformation task
     data_transformation_task = Task.get_task(task_id=ml_pipeline_nodes['step3_data_transformation'].executed)
@@ -33,14 +33,11 @@ async def lifespan(app: FastAPI):
     LABEL_ENCODER = data_transformation_task.artifacts['label_encoder'].get()
     NUM_LANDMARKS = X_test.shape[-2]
 
-    # Load the model weights from the training task
-    MODEL = build_and_compile_GISLR(
-        MAX_FRAMES, num_landmarks=NUM_LANDMARKS, num_glosses=MAX_LABELS, pad_value=PAD_VALUE, 
-        conv1d_dropout=conv1d_dropout, last_dropout=last_dropout, is_training=False,
-    )
-    model_training_task = Task.get_task(task_id=ml_pipeline_nodes['step4_model_training'].executed)
-    model_weights_path = model_training_task.models['output'][-1].get_local_copy()
-    MODEL.load_weights(model_weights_path)
+    # Load the model weights from the best training task
+    hyperparameter_tuning_task = Task.get_task(task_id=ml_pipeline_nodes['step6_hyperparameter_tuning'].executed)
+    best_job_id = hyperparameter_tuning_task.get_parameter('General/best_job_id')
+    best_model_training_task = Task.get_task(task_id=best_job_id)
+    MODEL = load_model(best_model_training_task.models['output'][-1].get_local_copy())
     yield
 
     # Clean up and release the resources

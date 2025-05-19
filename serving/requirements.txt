@@ -1,0 +1,5 @@
+clearml==1.18.0
+fastapi==0.115.12
+numpy==2.2.6
+pydantic==2.11.4
+tensorflow==2.18.0
