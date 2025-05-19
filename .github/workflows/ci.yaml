@@ -53,6 +53,7 @@ jobs:
             --name 'CI: Test remote runnable' \
             --branch ${{ github.head_ref }} \
             --script cicd/example_task.py \
+            --requirements cicd/requirements.txt \
             --skip-task-init --queue "$QUEUE" \
           | rg -o 'Task id=(.*) sent' -r '$1')
           echo "TASK_ID=${TASK_ID}" >> $GITHUB_OUTPUT
