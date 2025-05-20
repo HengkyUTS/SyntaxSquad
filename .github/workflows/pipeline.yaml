@@ -1,32 +1,37 @@
-name: CD Pipeline Automation
+name: Pipeline CI/CD automation
 
 on:
-  workflow_run:
-    workflows: [ CI Quality Checks ]
-    types: [ completed ]
+  # push:
+  #   branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ assigned, opened, edited, reopened, synchronize ]
 
 jobs:
-  execute-pipeline:
+  test-remote-runnable:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     env: # ✅ env: Global environment variables for all steps
       CLEARML_API_HOST: ${{ secrets.CLEARML_API_HOST }}
       CLEARML_API_ACCESS_KEY: ${{ secrets.CLEARML_API_ACCESS_KEY }}
       CLEARML_API_SECRET_KEY: ${{ secrets.CLEARML_API_SECRET_KEY }}
+      QUEUE: Remote_CPU
 
     steps:
+      - &step0
       - name: 👉 Step 0 - Check the event type
         run: |
           echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
           echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
           echo "🔎 The name of current branch is ${{ github.ref }} and the repository is ${{ github.repository }}."
 
+      - &step1
       - name: 👉 Step 1 - Checkout the repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-        
+      
+      - &step2
       - name: 👉 Step 2 - Set up Python
         uses: actions/setup-python@v4
         with:
@@ -35,14 +40,45 @@ jobs:
       - name: 👉 Step 3 - Install ClearML
         run: |
           python -m pip install --upgrade pip clearml
+          sudo apt-get update && sudo apt-get install -y ripgrep
 
-      - name: 👉 Step 4 - Debug ENV
+      - name: 👉 Step 4 - Make sure the task can run remotely
+        id: launch_task
         run: |
-          echo "CLEARML_API_HOST=$CLEARML_API_HOST"
-          if [ -z "$CLEARML_API_HOST" ]; then echo "❌ HOST is empty!"; exit 1; fi
-          curl -I $CLEARML_API_HOST
+          TASK_ID=$(clearml-task \
+            --project SyntaxSquad \
+            --name 'CI: Test remote runnable' \
+            --branch ${{ github.head_ref || github.ref_name }} \
+            --script cicd/example_task.py \
+            --requirements cicd/requirements.txt \
+            --skip-task-init --queue "$QUEUE" \
+          | rg -o 'Task id=(.*) sent' -r '$1')
+          echo "TASK_ID=${TASK_ID}" >> $GITHUB_OUTPUT
 
-      - name: 👉 Step 5 - Run the pipeline
+      - name: 👉 Step 5 - Poll for task progress
+        run: |
+          python cicd/check_remotely_runnable.py "${{ steps.launch_task.outputs.TASK_ID }}"
+          echo "🍏 This job's status is ${{ job.status }}."
+
+
+  execute-pipeline:
+    runs-on: ubuntu-latest
+    needs: test-remote-runnable
+
+    env: # ✅ env: Global environment variables for all steps
+      CLEARML_API_HOST: ${{ secrets.CLEARML_API_HOST }}
+      CLEARML_API_ACCESS_KEY: ${{ secrets.CLEARML_API_ACCESS_KEY }}
+      CLEARML_API_SECRET_KEY: ${{ secrets.CLEARML_API_SECRET_KEY }}
+
+    steps:
+      - *step0
+      - *step1
+      - *step2
+      - name: 👉 Step 3 - Install ClearML
+        run: |
+          python -m pip install --upgrade pip clearml
+
+      - name: 👉 Step 4 - Run the pipeline
         run: |
           python pipeline_from_tasks.py
           echo "🍏 This job's status is ${{ job.status }}."
@@ -60,34 +96,15 @@ jobs:
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}
 
     steps:
-      - name: 👉 Step 0 - Check the event type
-        run: |
-          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-          echo "🔎 The name of current branch is ${{ github.ref }} and the repository is ${{ github.repository }}."
-
-      - name: 👉 Step 1 - Checkout the repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-        
-      - name: 👉 Step 2 - Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11.12'
-
+      - *step0
+      - *step1
+      - *step2
       - name: 👉 Step 3 - Install dependencies
         run: |
           python -m pip install --upgrade pip 
           pip install clearml pandas tabulate github3.py Jinja2
 
-      - name: 👉 Step 4 - Debug ENV
-        run: |
-          echo "CLEARML_API_HOST=$CLEARML_API_HOST"
-          if [ -z "$CLEARML_API_HOST" ]; then echo "❌ HOST is empty!"; exit 1; fi
-          curl -I $CLEARML_API_HOST
-
-      - name: 👉 Step 5 - Assign the latest Pipeline as production if it's better than the current one
+      - name: 👉 Step 4 - Assign the latest Pipeline as production if it's better than the current one
         run: |
           python cicd/pipeline_reports.py
           echo "🍏 This job's status is ${{ job.status }}."
@@ -104,34 +121,15 @@ jobs:
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}
 
     steps:
-      - name: 👉 Step 0 - Check the event type
-        run: |
-          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-          echo "🔎 The name of current branch is ${{ github.ref }} and the repository is ${{ github.repository }}."
-
-      - name: 👉 Step 1 - Checkout the repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-        
-      - name: 👉 Step 2 - Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11.12'
-
+      - *step0
+      - *step1
+      - *step2
       - name: 👉 Step 3 - Install dependencies
         run: |
           python -m pip install --upgrade pip 
           pip install clearml pandas tabulate github3.py Jinja2
 
-      - name: 👉 Step 4 - Debug ENV
-        run: |
-          echo "CLEARML_API_HOST=$CLEARML_API_HOST"
-          if [ -z "$CLEARML_API_HOST" ]; then echo "❌ HOST is empty!"; exit 1; fi
-          curl -I $CLEARML_API_HOST
-
-      - name: 👉 Step 5 - Comment metrics from step7_model_evaluation of the pipeline
+      - name: 👉 Step 4 - Comment metrics from step7_model_evaluation of the pipeline
         run: |
           python cicd/production_tagging.py
           echo "🍏 This job's status is ${{ job.status }}."
@@ -148,46 +146,27 @@ jobs:
       FASTAPI_PORT: 8000
 
     steps:
-      - name: 👉 Step 0 - Check the event type
-        run: |
-          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-          echo "🔎 The name of current branch is ${{ github.ref }} and the repository is ${{ github.repository }}."
-
-      - name: 👉 Step 1 - Checkout the repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-        
-      - name: 👉 Step 2 - Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11.12'
-
+      - *step0
+      - *step1
+      - *step2
       - name: 👉 Step 3 - Install dependencies
         run: |
           python -m pip install --upgrade pip 
           pip install -r serving/requirements.txt
 
-      - name: 👉 Step 4 - Debug ENV
-        run: |
-          echo "CLEARML_API_HOST=$CLEARML_API_HOST"
-          if [ -z "$CLEARML_API_HOST" ]; then echo "❌ HOST is empty!"; exit 1; fi
-          curl -I $CLEARML_API_HOST
-
-      - name: 👉 Step 5 - Deploy FastAPI model serving
+      - name: 👉 Step 4 - Deploy FastAPI model serving
         run: |
           nohup fastapi dev serving/pose2gloss.py & # Start the FastAPI server in the background
           echo $! > fastapi.pid # Save the PID of the FastAPI server
           sleep 10 # Wait for the server to start
           curl -f http://localhost:$FASTAPI_PORT/health || exit 1 # Verify the server is running
 
-      - name: 👉 Step 6 - Notify deployment status
+      - name: 👉 Step 5 - Notify deployment status
         if: success()
         run: |
           echo "FastAPI model serving deployed successfully on port $FASTAPI_PORT"
 
-      - name: 👉 Step 7 - Stop FastAPI server (cleanup)
+      - name: 👉 Step 6 - Stop FastAPI server (cleanup)
         if: always() # This step will always run, even if the previous steps fail
         run: |
           kill $(cat fastapi.pid) # Stop the FastAPI server using the saved PID
