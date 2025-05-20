@@ -68,7 +68,7 @@ best_hpo_job = hpo.get_top_experiments(top_k=1)
 if best_hpo_job:
     best_hpo_job = best_hpo_job[0]
     best_hpo_metrics = best_hpo_job.get_last_scalar_metrics()['Best Metrics']
-    if best_hpo_metrics['val_loss']['last'] < best_metrics['val_loss']['last']:
+    if best_hpo_metrics['val_accuracy']['last'] > best_metrics['val_accuracy']['last']:
         best_job_id = best_hpo_job.id
         best_hyperparameters = best_hpo_job.get_parameters()
         best_metrics = best_hpo_metrics
