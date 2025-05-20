@@ -127,7 +127,7 @@ jobs:
           python -m pip install --upgrade pip 
           pip install clearml pandas tabulate github3.py Jinja2
 
-      - name: 👉 Step 4 - Assign the latest Pipeline as production if it's better than the current one
+      - name: 👉 Step 4 - Comment metrics from step7_model_evaluation of the pipeline
         run: |
           python cicd/pipeline_reports.py
           echo "🍏 This job's status is ${{ job.status }}."
@@ -165,7 +165,7 @@ jobs:
           python -m pip install --upgrade pip 
           pip install clearml pandas tabulate github3.py Jinja2
 
-      - name: 👉 Step 4 - Comment metrics from step7_model_evaluation of the pipeline
+      - name: 👉 Step 4 - Assign the latest Pipeline as production if it's better than the current one
         run: |
           python cicd/production_tagging.py
           echo "🍏 This job's status is ${{ job.status }}."
