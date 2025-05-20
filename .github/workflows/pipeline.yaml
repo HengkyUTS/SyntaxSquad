@@ -205,9 +205,9 @@ jobs:
 
       - name: 👉 Step 4 - Deploy FastAPI model serving
         run: |
-          nohup fastapi dev serving/pose2gloss.py & # Start the FastAPI server in the background
+          fastapi dev serving/pose2gloss.py & # Start the FastAPI server in the background
           echo $! > fastapi.pid # Save the PID of the FastAPI server
-          sleep 10 # Wait for the server to start
+          sleep 240 # Wait for 4 minutes to start the server and download artifacts
           curl -f http://localhost:$FASTAPI_PORT/health || exit 1 # Verify the server is running
 
       - name: 👉 Step 5 - Notify deployment status
