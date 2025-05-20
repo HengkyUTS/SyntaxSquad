@@ -61,12 +61,12 @@ def create_stats_comment(task_stats): # Create a comment on the current PR conta
 
     owner, repo = payload.get('repository', {}).get('full_name', '').split('/')
     if owner and repo:
-        gh = login(token=os.getenv('GITHUB_TOKEN'))
+        gh = login(token=os.getenv('GH_TOKEN'))
         if gh:
             pull_request = gh.pull_request(owner, repo, payload.get('number'))
             if pull_request: pull_request.create_comment(task_stats) # Add the task metrics to the PR automatically
             else: print(f"Can't comment PR, {payload.get('number')}")
-        else: print(f"Can't log in to gh, {os.getenv('GITHUB_TOKEN')}")
+        else: print(f"Can't log in to gh, {os.getenv('GH_TOKEN')}")
 
 
 if __name__ == '__main__': # Main check: Does a ClearML task exist for this specific commit?
