@@ -12,7 +12,7 @@ from ..pose2gloss.model_utils import *
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global MODEL, LABEL_ENCODER, MAX_FRAMES, PAD_VALUE, NUM_LANDMARKS, MAX_LABELS
+    global INTERPRETER, INPUT_DETAILS, OUTPUT_DETAILS, LABEL_ENCODER, MAX_FRAMES, PAD_VALUE, NUM_LANDMARKS, MAX_LABELS
     ml_pipeline = PipelineController.get(
         pipeline_project='SyntaxSquad', 
         pipeline_name='SyntaxSquad ML Pipeline', 
@@ -37,12 +37,20 @@ async def lifespan(app: FastAPI):
     hyperparameter_tuning_task = Task.get_task(task_id=ml_pipeline_nodes['step6_hyperparameter_tuning'].executed)
     best_job_id = hyperparameter_tuning_task.get_parameter('General/best_job_id')
     best_model_training_task = Task.get_task(task_id=best_job_id)
-    MODEL = load_model(best_model_training_task.models['output'][-1].get_local_copy())
+
+    tf_model = load_model(best_model_training_task.models['output'][-1].get_local_copy())
+    tflite_model = tf.lite.TFLiteConverter.from_keras_model(tf_model).convert()
+    INTERPRETER = tf.lite.Interpreter(model_content=tflite_model)
+    INTERPRETER.allocate_tensors()
+    INPUT_DETAILS = INTERPRETER.get_input_details()
+    OUTPUT_DETAILS = INTERPRETER.get_output_details()
     yield
 
     # Clean up and release the resources
+    del INTERPRETER
+    del INPUT_DETAILS
+    del OUTPUT_DETAILS
     del LABEL_ENCODER
-    del MODEL
 
 
 app = FastAPI(
@@ -52,9 +60,9 @@ app = FastAPI(
 
 @app.get('/health')
 async def health_check(): # Health check endpoint to verify API status
-    if MODEL is None or LABEL_ENCODER is None:
+    if INTERPRETER is None or LABEL_ENCODER is None:
         raise HTTPException(status_code=503, detail='Model or label encoder not loaded')
-    return {'status': 'healthy', 'model_loaded': MODEL is not None}
+    return {'status': 'healthy', 'model_loaded': INTERPRETER is not None}
 
 @app.get('/metadata')
 async def get_metadata(): # Retrieve metadata about the loaded model
@@ -89,8 +97,10 @@ async def predict(request: LandmarkRequest):
         landmarks = landmarks - nose_center[:, None, :]
         landmarks = tf.expand_dims(landmarks, axis=0) # Add batch dimension : (1, MAX_FRAMES, 180, 3)
 
-        # Run inference
-        logits = MODEL(landmarks, training=False)
+        # Run inference with TFLite model
+        INTERPRETER.set_tensor(INPUT_DETAILS[0]['index'], landmarks)
+        INTERPRETER.invoke()
+        logits = INTERPRETER.get_tensor(OUTPUT_DETAILS[0]['index']) # Shape: (1, MAX_LABELS)
         probabilities = tf.nn.softmax(logits, axis=-1).numpy()[0] # Shape: (MAX_LABELS,)
         
         # Get top N predictions and scores
