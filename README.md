@@ -30,7 +30,7 @@ Initially, our project will concentrate on **American Sign Language**. In future
 
 For the demonstration, I envision creating a website or an extension for video conferencing platforms like Google Meet to generate live captions for deaf individuals. However, I recognize that this concept primarily aids non-signers in understanding deaf individuals rather than empowering deaf people to communicate effectively. My current time constraints prevent me from implementing a text-to-sign feature, so for now, I can only conceptualize this one-way communication demo, rather than a two-way interaction that facilitates communication from deaf individuals back to others.
 
-### III. Product High-level Design
+## III. Product High-level Design
 
 The system is structured as a pipeline with distinct subsystems: **Data Sources**, **Feature Store**, **MLOps Pipeline**, **Model Serving**, **Gloss-to-Text Translation**, **CI/CD Pipeline**, and **User Interface**. Each subsystem is meticulously designed to handle specific aspects of the ASL translation workflow, from raw video data to a user-facing Streamlit app that provides real-time translations. The design integrates ClearML for MLOps automation, GitHub Actions for CI/CD, FastAPI for model serving, and GPT-4o-mini for natural language translation, culminating in a production-ready solution.
 
@@ -182,69 +182,67 @@ This subsystem handles the ingestion of raw data, specifically ASL videos from t
 
 ### 2. Feature Store 🗄️
 
-This subsystem extracts landmarks from videos using MediaPipe, stores them as features, and registers them in ClearML. The process starts with the `WLASL2000` dataset, extracts 180 keypoints per frame (42 hand, 6 pose, 132 face) using `wlasl2landmarks.py`, and saves the results as `WLASL_landmarks.npz` and `WLASL_parsed_metadata.json`. These are tagged as `stable` in ClearML and stored in a feature store with metadata (`video_id`, `gloss`, `split`).
+This subsystem extracts landmarks from videos using MediaPipe, stores them as features, and registers them in ClearML. The process starts with the `WLASL2000` dataset, extracts 180 keypoints per frame (42 hand, 6 pose, 132 face) using [wlasl2landmarks.py](./preprocessing/wlasl2landmarks.py), and saves the results as `WLASL_landmarks.npz` and [WLASL_parsed_metadata.json](./datasets/WLASL_parsed_metadata.json). These are tagged as `stable` in ClearML and stored in a feature store with metadata (`video_id`, `gloss`, `split`).
 - **Landmark Extraction**: Using MediaPipe to extract 180 keypoints (42 hand, 6 pose, 132 face) is a strategic choice. The selection of landmarks focuses on expressive parts critical for ASL (hands for gestures, face for expressions, pose for body context), optimizing for both accuracy and computational efficiency. The process taking ~2 days highlights the scale of the dataset (~21k videos), but ClearML’s task management ensures this is a one-time cost with reusable outputs.
 - **Feature Store Design**: Storing features with metadata (`video_id`, `gloss`, `split`) in a ClearML dataset enables efficient data access for training and inference. The `stable` tag ensures reliability for production pipelines, aligning with MLOps Level 2 requirements for robust feature management.
-- **Technical Excellence**: The feature store’s integration with ClearML allows for versioning and reproducibility, critical for iterative development. The choice of 180 keypoints balances model input complexity with predictive power, showcasing expert-level design (SLO3).
+- **Technical Excellence**: The feature store’s integration with ClearML allows for versioning and reproducibility, critical for iterative development. The choice of 180 keypoints balances model input complexity with predictive power, showcasing expert-level design.
 
 ### 3. MLOps Pipeline (ClearML) 🚀
 This is the core of the system, orchestrating data preparation, training, evaluation, and continuous training. Let’s break down its subcomponents.
 
 #### 3.1 Data Preparation 🔄
 
-Features from the feature store are processed through three tasks: **Data Splitting**, **Data Augmentation**, and **Data Transformation**. The splitting task (`step1_data_splitting.py`) divides data into train, validation, and test sets, logging statistics (e.g., number of frames, video count) as ClearML plots. Augmentation (`step2_data_augmentation.py`) applies transformations (rotate, zoom, shift, speedup), and transformation (`step3_data_transformation.py`) normalizes landmarks (nose-based) and pads sequences to `max_frames=195` with `padding_value=-100.0`.
+Features from the feature store are processed through three tasks: **Data Splitting**, **Data Augmentation**, and **Data Transformation**. The splitting task ([step1_data_splitting.py](./pose2gloss/step1_data_splitting.py)) divides data into train, validation, and test sets, logging statistics (e.g., number of frames, video count) as ClearML plots. Augmentation ([step2_data_augmentation.py](./pose2gloss/step2_data_augmentation.py)) applies transformations (rotate, zoom, shift, speedup), and transformation ([step3_data_transformation.py](./pose2gloss/step3_data_transformation.py)) normalizes landmarks (nose-based) and pads sequences to `max_frames=195` with `padding_value=-100.0`.
 - **Splitting and Statistics**: Logging feature stats as ClearML plots provides visibility into data distribution, aiding debugging and optimization. The splits ensure balanced datasets for training, validation, and testing, a critical step for model generalization.
 - **Augmentation**: Techniques like rotation, zooming, and speedup address the sparsity of the WLASL dataset (5-6 examples per gloss), artificially increasing diversity. This is a sophisticated approach to mitigate overfitting, especially given my model’s tendency to overfit (noted in Sprint 2).
 - **Normalization and Padding**: Nose-based normalization standardizes landmark positions, reducing variance due to spatial differences. Padding to `max_frames=195` with a distinct value (`-100.0`) ensures consistent input shapes for the model, with the value chosen to be outside the normalized range for easy masking during training.
 
 #### 3.2 Multi-Training & Selection 🧠
 
-This subsystem trains 2 Pose-to-Gloss models: GISLR (`dim=192`, `kernel_size=17`, `dropout=0.2`) and ConvNeXtTiny (`include_preprocessing=False`, `include_top=True`). Training (`step4_model_training.py`) uses mixed precision on two Colab A100 GPUs, with `batch_size=128`, `epochs=100`, `learning_rate=1e-3`, AdamW optimizer, and `ReduceLROnPlateau`. Metrics (loss, accuracy, top-5) are logged as ClearML scalars. Model selection (`step5_model_selection.py`) chooses GISLR based on validation accuracy (60% top-1).
+This subsystem trains 2 Pose-to-Gloss models: GISLR (`dim=192`, `kernel_size=17`, `dropout=0.2`) and ConvNeXtTiny (`include_preprocessing=False`, `include_top=True`). Training ([step4_model_training.py](./pose2gloss/step4_model_training.py)) uses mixed precision on two Colab A100 GPUs, with `batch_size=128`, `epochs=100`, `learning_rate=1e-3`, AdamW optimizer, and `ReduceLROnPlateau`. Metrics (loss, accuracy, top-5) are logged as ClearML scalars. Model selection (`step5_model_selection.py`) chooses GISLR based on validation accuracy (60% top-1).
 - **Model Choices**: GISLR, adapted from the Google Isolated Sign Language Recognition competition, is a strong baseline with proven performance on landmark data. ConvNeXtTiny, a modern convolutional architecture, adds diversity by exploring different feature extraction paradigms, potentially capturing patterns GISLR misses.
 - **Training Efficiency**: Mixed precision and parallel training on A100 GPUs optimize computational resources, reducing training time (noted as 3-5 minutes in Sprint 2). The use of AdamW with `ReduceLROnPlateau` addresses my observation of overfitting, dynamically adjusting the learning rate to stabilize training.
 - **Model Selection**: Selecting GISLR based on validation accuracy (60% top-1) is pragmatic, given its performance aligns with the original WLASL paper (65.89% top-1 for WLASL100). Logging metrics as ClearML scalars enables experiment comparison, a hallmark of MLOps Level 2.
-- **Technical Excellence**: The multi-model approach and automated selection process showcase advanced AI methods (SLO3), with ClearML integration ensuring experiment tracking and reproducibility.
+- **Technical Excellence**: The multi-model approach and automated selection process showcase advanced AI methods, with ClearML integration ensuring experiment tracking and reproducibility.
 
 #### 3.3 Hyperparameter Tuning 🔍
 
-The `HyperParameterOptimizer` (`step6_hyperparameter_tuning.py`) tunes the GISLR model’s hyperparameters (`learning_rate`, `dropout_rate`, `dim`) using Optuna, with a multi-objective goal (minimize `val_loss`, maximize `val_accuracy`). It runs 2 concurrent tasks with a total of 2 jobs, logging best parameters and metrics (val_accuracy ~60%, val_top5_accuracy ~87%) to ClearML.
+The `HyperParameterOptimizer` ([step6_hyperparameter_tuning.py](./pose2gloss/step6_hyperparameter_tuning.py)) tunes the GISLR model’s hyperparameters (`learning_rate`, `dropout_rate`, `dim`) using Optuna, with a multi-objective goal (minimize `val_loss`, maximize `val_accuracy`). It runs 2 concurrent tasks with a total of 2 jobs, logging best parameters and metrics (val_accuracy ~60%, val_top5_accuracy ~87%) to ClearML.
 - **Optimization Strategy**: Using `HyperParameterOptimizer` with Optuna is a state-of-the-art approach for hyperparameter tuning, balancing exploration and exploitation. The multi-objective optimization ensures trade-offs between loss and accuracy are considered, critical given my model’s overfitting tendencies.
 - **Concurrency**: Running 2 concurrent tasks maximizes GPU utilization on Colab, though the total of 2 jobs suggests a focused search, likely to manage resource constraints (noted in Sprint 2). The slight improvement in metrics (val_top5_accuracy from 86% to 87%) indicates effective tuning.
 
 #### 3.4 Evaluation 📊
 
-The evaluation task (`step7_model_evaluation.py`) assesses the best model (GISLR with tuned hyperparameters) on the test set, logging accuracy, top-5 accuracy, classification report, and confusion matrix as ClearML plots.
+The evaluation task ([step7_model_evaluation.py](./pose2gloss/step7_model_evaluation.py)) assesses the best model (GISLR with tuned hyperparameters) on the test set, logging accuracy, top-5 accuracy, classification report, and confusion matrix as ClearML plots.
 - **Comprehensive Metrics**: Logging a classification report and confusion matrix provides deep insights into model performance across glosses, identifying specific areas for improvement (e.g., frequently confused glosses).
 - **ClearML Integration**: Visualizing metrics as plots in ClearML enhances interpretability, aligning with MLOps best practices for monitoring and debugging.
-- **Technical Excellence**: The evaluation process ensures the model’s production readiness, a key requirement for MLOps Level 2 (SLO3).
+- **Technical Excellence**: The evaluation process ensures the model’s production readiness, a key requirement for MLOps Level 2.
 
 #### 3.5 Continuous Training 🔄
 
-The `PipelineController` (`pipeline_from_tasks.py`) orchestrates the entire pipeline, with parameters (`max_labels=100/300`, `batch_size=128`, `max_frames=195`) and a `production` tag. `TriggerScheduler` monitors for new data (via tags `landmarks`, `stable`) and performance drops (test accuracy < 60%), rerunning the pipeline as needed.
+The `PipelineController` ([pipeline_from_tasks.py](./pipeline_from_tasks.py)) orchestrates the entire pipeline, with parameters (`max_labels=100/300`, `batch_size=128`, `max_frames=195`) and a `production` tag. `TriggerScheduler` monitors for new data (via tags `landmarks`, `stable`) and performance drops (test accuracy < 60%), rerunning the pipeline as needed.
 - **Automation**: The `TriggerScheduler` ensures continuous training by monitoring dataset tags and performance metrics, a cornerstone of MLOps Level 2. The new data trigger allows the system to adapt to fresh inputs, while the performance drop trigger (threshold at 60%) ensures reliability in production.
 - **PipelineController**: Centralizing the pipeline with `PipelineController` ensures end-to-end execution, with parameters customizable for experiments (e.g., WLASL100 vs. WLASL300). The `production` tag marks the pipeline for deployment, aligning with CI/CD requirements.
 
 ### 4. Model Serving 🌐
 
-The best model (GISLR) is converted to TFLite for efficient inference and deployed as a FastAPI endpoint (`serving/pose2gloss.py`). Endpoints include `/predict` (returns top-N glosses with scores), `/health`, and `/metadata`, using Pydantic for request/response validation.
+The best model (GISLR) is converted to TFLite for efficient inference and deployed as a FastAPI endpoint ([serving/pose2gloss.py](./serving/pose2gloss.py)). Endpoints include `/predict` (returns top-N glosses with scores), `/health`, and `/metadata`, using Pydantic for request/response validation.
 - **TFLite Conversion**: Converting the model to TFLite reduces inference latency and memory usage, critical for real-time applications like ASL translation. This optimization ensures the system can run on resource-constrained environments (e.g., local machines).
 - **FastAPI Endpoints**: The `/predict` endpoint leverages the top-N gloss prediction strategy (top-5 accuracy ~87%), enhancing translation quality. `/health` and `/metadata` endpoints provide operational insights, aligning with production best practices.
-- **Pydantic Validation**: Using Pydantic ensures robust input/output validation, improving API reliability and user experience (SLO4).
-- **Technical Excellence**: The serving setup balances efficiency and functionality, showcasing advanced deployment strategies (SLO3).
+- **Pydantic Validation**: Using Pydantic ensures robust input/output validation, improving API reliability and user experience.
+- **Technical Excellence**: The serving setup balances efficiency and functionality, showcasing advanced deployment strategies.
 
 ### 5. Gloss-to-Text Translation 📝
 
-The top-5 glosses with scores from the FastAPI endpoint are fed into the Gloss-to-Text task (`gloss2text/translator.py`). A beam search-like prompt is used with GPT-4o-mini (`max_tokens=100`, `temperature=0.7`) to generate natural English translations. Metrics (BLEU, ROUGE) are logged as ClearML plots.
+The top-5 glosses with scores from the FastAPI endpoint are fed into the Gloss-to-Text task ([gloss2text/translator.py](./gloss2text/translator.py)). A beam search-like prompt is used with GPT-4o-mini (`max_tokens=100`, `temperature=0.7`) to generate natural English translations. Metrics (BLEU, ROUGE) are logged as ClearML plots.
 - **Beam Search-like Prompt**: Using top-5 glosses with scores allows GPT-4o-mini to select the most coherent combination, significantly improving translation quality over a top-1 approach (given the 61% top-1 accuracy). This mimics beam search by considering multiple hypotheses, a novel application of LLMs in sign language translation.
 - **GPT-4o-mini**: The choice of GPT-4o-mini balances performance and latency, with `temperature=0.7` introducing controlled creativity for natural translations. `max_tokens=100` ensures concise outputs suitable for real-time display.
-- **Evaluation Metrics**: Logging BLEU and ROUGE scores as ClearML plots provides quantitative insights into translation quality, supporting iterative improvement (SLO4).
 
 ### 6. CI/CD Pipeline (GitHub Actions) 🚀
 
-The GitHub repository (`SyntaxSquad`) uses GitHub Actions (`.github/workflows/pipeline.yml`) for CI/CD. CI includes testing (`cicd/example_task.py`), pipeline execution (`cicd/pipeline_from_tasks.py`), and reporting metrics as PR comments (`cicd/pipeline_reports.py`). CD tags the pipeline (`cicd/production_tagging.py`) and deploys the FastAPI endpoint (`cicd/deploy_fastapi.py`) to a localhost simulation.
+The GitHub repository (`SyntaxSquad`) uses GitHub Actions ([.github/workflows/pipeline.yml](./.github/workflows/pipeline.yml)) for CI/CD. CI includes testing ([cicd/example_task.py](./cicd/example_task.py)), [pipeline execution](./pipeline_from_tasks.py), and reporting metrics as PR comments ([cicd/pipeline_reports.py](./cicd/pipeline_reports.py)). CD tags the pipeline ([cicd/production_tagging.py](./cicd/production_tagging.py)) and deploys the [FastAPI endpoint](./serving/pose2gloss.py) to a localhost simulation.
 - **CI Workflow**: Automated testing ensures code quality, while pipeline execution verifies end-to-end functionality on each push/PR. Reporting metrics as PR comments enhances collaboration, a key MLOps Level 2 feature.
 - **CD Workflow**: Production tagging and FastAPI deployment ensure rapid updates in production, meeting the reliability goals of MLOps Level 2. The localhost simulation is a practical choice for academic projects, mimicking real-world deployment.
-- **Technical Excellence**: The CI/CD pipeline demonstrates advanced automation (SLO2), with ClearML integration ensuring traceability and scalability (SLO3).
 
 ### 7. User Interface 🖥️
 
@@ -280,5 +278,5 @@ graph LR
 ```
 The Streamlit UI (`streamlit_app.py`) provides a real-time ASL translation interface. It captures webcam input (`cv2.VideoCapture`), extracts landmarks using MediaPipe, fetches top-N gloss predictions via the FastAPI endpoint, and displays translations from the Gloss-to-Text task. The UI renders landmarks (`st.image`), gloss predictions (`st.table`), translations (`st.text`), and user controls (`st.button` for start/stop, `top_n` adjustment).
 - **Real-Time Processing**: The UI’s ability to process webcam input, extract landmarks, and display translations with <1s latency is a technical feat, enabled by efficient TFLite inference and FastAPI serving.
-- **User-Centric Design**: Displaying landmarks, gloss predictions, and translations in real-time provides transparency, enhancing user trust. User controls for starting/stopping translation and adjusting `top_n` improve interactivity (SLO4).
-- **Integration**: The seamless integration of webcam input, FastAPI predictions, and Gloss-to-Text translation demonstrates end-to-end system design (SLO2), with Streamlit ensuring accessibility for deaf users (SLO1).
+- **User-Centric Design**: Displaying landmarks, gloss predictions, and translations in real-time provides transparency, enhancing user trust. User controls for starting/stopping translation and adjusting `top_n` improve interactivity.
+- **Integration**: The seamless integration of webcam input, FastAPI predictions, and Gloss-to-Text translation demonstrates end-to-end system design, with Streamlit ensuring accessibility for deaf users.
