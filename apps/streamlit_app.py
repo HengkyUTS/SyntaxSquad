@@ -9,16 +9,17 @@ import mediapipe as mp
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from preprocessing.video2landmarks import VideoLandmarksExtractor
 from gloss2text.translator import Gloss2TextTranslator
 
-
-if 'camera_running' not in st.session_state: st.session_state.camera_running = False
+# os.environ['OPENAI_API_KEY'] = 'Your API KEY'
+if "camera_running" not in st.session_state: st.session_state.camera_running = False
 if "cap" not in st.session_state: st.session_state.cap = cv2.VideoCapture(0)
 for var in ["gloss_history_display", "gloss_history_plain"]:
     if var not in st.session_state:
         st.session_state[var] = []
 if "current_translation" not in st.session_state: st.session_state.current_translation = ""
-if "landmark_buffer" not in st.session_state: st.session_state.landmark_buffer = []  # 将收集的 landmark 每帧加入其中
+if "landmark_buffer" not in st.session_state: st.session_state.landmark_buffer = []  # Add the collected each frame landmarks.
 if "gpt_translator" not in st.session_state: st.session_state.gpt_translator = Gloss2TextTranslator(model_name='gpt-4o-mini')
 
 st.set_page_config(page_title="ASL Translator", layout="wide")
@@ -55,7 +56,7 @@ filtered_face = [0, 4, 7, 8, 10, 13, 14, 17, 21, 33, 37, 39, 40, 46, 52, 53, 54,
 def extract_180_landmarks(results):
     all_landmarks = []
 
-    # ---- 1. Pose (6个点)
+    # ---- 1. Pose
     if results.pose_landmarks:
         pose = results.pose_landmarks.landmark
         for idx in filtered_pose:
@@ -97,80 +98,71 @@ def extract_180_landmarks(results):
     return np.array(all_landmarks)
 
 
+extractor = VideoLandmarksExtractor()
 if mode == "Upload Video":
     uploaded_file = st.file_uploader("upload your video( .mp4 / .avi)", type=["mp4", "avi"])
     if uploaded_file is not None:
         filename = uploaded_file.name
         ext = os.path.splitext(filename)[-1].lower()
+        allowed_ext = [".mp4", ".avi"] # ✅ List of supported extensions
 
-        # ✅ 支持的扩展名列表
-        allowed_ext = [".mp4", ".avi"]
         if ext not in allowed_ext: st.error(f"❌ Invalid format：{ext}. Only allow .mp4 or .avi")
         else: st.success(f"✅ successfully uploaded：{filename}")
 
-        # 保存到临时文件
+        # Save to temporary file
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(uploaded_file.read())
         video_path = tfile.name
 
         gpt_translator = Gloss2TextTranslator(model_name='gpt-4o-mini')
-        # 左右布局
         col1, col2 = st.columns([2, 3])
         with col1:
             st.video(uploaded_file)
+
         with col2:
             st.markdown("### 🧾 results")
-
-            # 初始化 Mediapipe
             mp_holistic = mp.solutions.holistic
             holistic = mp_holistic.Holistic(static_image_mode=False)
 
-            # 读取所有帧
+            # Read all frames
             cap = cv2.VideoCapture(video_path)
             frame_buffer = []
             landmark_sequences = []
             frame_count = 0
 
             st.info("⏳ Frames are being extracted and analysed for sign language...")
-
-            # 逐帧读取并提取 landmarks
-            with st.spinner("extracting landmarks..."):
+            with st.spinner("extracting landmarks..."): # Read frame by frame and extract landmarks
                 while True:
                     ret, frame = cap.read()
                     if not ret: break
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     results = holistic.process(frame_rgb)
+                    # landmarks = extractor.extract_frame_landmarks(results)
                     landmarks = extract_180_landmarks(results)
                     frame_buffer.append(landmarks)
                     frame_count += 1
 
-                    # 每 195 帧一组
-                    if len(frame_buffer) == 195:
+                    if len(frame_buffer) == 195: # Every 195 frames as a group
                         landmark_sequences.append(np.array(frame_buffer))
                         frame_buffer = []
-                    # 最后不足 195 补 0
-                    if 0 < len(frame_buffer) < 195:
-                        needed = 195 - len(frame_buffer)
-                        zero_frame = np.zeros((180, 3))
-                        frame_buffer.extend([zero_frame] * needed)
-                        landmark_sequences.append(np.array(frame_buffer))
+
+                if 0 < len(frame_buffer) < 195:
+                    needed = 195 - len(frame_buffer)
+                    zero_frame = np.zeros((180, 3))
+                    frame_buffer.extend([zero_frame] * needed)
+                    landmark_sequences.append(np.array(frame_buffer))
 
             cap.release()
             holistic.close()
             st.success(f"✅ successfully extracted {len(landmark_sequences)} sequences")
 
-            # 模型预测 gloss
-            predicted_glosses = []
-            predicted_display = []
-
+            # Model prediction gloss
+            predicted_glosses, predicted_display = [], []
             st.info("🧠 predicting...")
             for seq in landmark_sequences:
                 landmark = np.array(seq).tolist()
                 url = 'http://127.0.0.1:8000/predict'
-                payload = {
-                    'landmarks': landmark,
-                    'top_n': 1,
-                }
+                payload = {'landmarks': landmark, 'top_n': 1}
                 response = requests.post(url, json=payload)
                 prediction = response.json()
                 if (
@@ -185,7 +177,6 @@ if mode == "Upload Video":
                 predicted_display.append(formatted)
                 predicted_glosses.append(gloss)
 
-            # 展示 gloss
             gloss_display = " → ".join(predicted_display)
             st.markdown(
                 f"""<div style='background:#f0fff0;padding:10px;border-radius:10px;border:2px solid #4CAF50;'>
@@ -193,8 +184,7 @@ if mode == "Upload Video":
                 unsafe_allow_html=True
             )
 
-            # GPT 翻译
-            try:
+            try: # GPT translation
                 translation = gpt_translator.translate(predicted_glosses)
                 if translation: current_translation = translation
             except Exception as e:
@@ -205,9 +195,7 @@ if mode == "Upload Video":
                 <strong>📝 Sentence:</strong><br><span style='font-size:18px;color:#0d47a1;'>{current_translation}</span></div>""",
                 unsafe_allow_html=True
             )
-    # process
 elif mode == "Real-time Translation":
-    # 初始化 Mediapipe
     mp_drawing = mp.solutions.drawing_utils
     mp_holistic = mp.solutions.holistic
     progress_container = st.empty()
@@ -222,11 +210,12 @@ elif mode == "Real-time Translation":
         unsafe_allow_html=True
     )
 
-    # 控制是否运行摄像头
+    # Control whether to run the camera
     col_run1, col_run2 = st.columns([1, 1])
     with col_run1:
         if st.button("▶️ start WebCam"):
             st.session_state.camera_running = True
+
     with col_run2:
         if st.button("⏹️ stop WebCam"):
             st.session_state.camera_running = False
@@ -236,9 +225,8 @@ elif mode == "Real-time Translation":
             if "cap" in st.session_state:
                 st.session_state.cap.release()
                 del st.session_state.cap
-    show_landmarks = st.checkbox("🔍 show Landmarks", value=True)
 
-    # UI区域布局
+    show_landmarks = st.checkbox("🔍 show Landmarks", value=True)
     col1, col2 = st.columns([1, 1])
     with col1:
         st.header("📷 Webcam Feed")
@@ -247,9 +235,7 @@ elif mode == "Real-time Translation":
 
     with col2:
         st.header("🔤 Prediction")
-
-        # Gloss 卡片
-        with st.container():
+        with st.container(): # Gloss container
             gloss_placeholder = st.markdown(
                 """
                 <div style="
@@ -266,8 +252,7 @@ elif mode == "Real-time Translation":
                 unsafe_allow_html=True
             )
 
-        # Sentence 卡片
-        with st.container():
+        with st.container(): # Sentence container
             translation_placeholder = st.markdown(
                 """
                 <div style="
@@ -284,11 +269,8 @@ elif mode == "Real-time Translation":
                 """,
                 unsafe_allow_html=True
             )
-
-    # 定义绘图函数
-
-    # 运行主循环（必须在 checkbox 控制下）
-    if st.session_state.camera_running:
+    
+    if st.session_state.camera_running: # Run main loop (must be under checkbox control)
         cap = st.session_state.cap
         cap.set(3, 640)
         cap.set(4, 480)
@@ -303,14 +285,12 @@ elif mode == "Real-time Translation":
             if not ret:
                 st.warning("can not read cam.")
                 break
-            # 翻转 + 转换色彩
+            # Flip + Colour conversion
             frame = cv2.flip(frame, 1)
             image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = holistic.process(image) # Mediapipe process
 
-            # Mediapipe 处理
-            results = holistic.process(image)
-
-            # 绘制关键点
+            # Plot key points
             if show_landmarks: annotated = draw_landmarks_on_frame(frame, results)
             else: annotated = frame
 
@@ -318,36 +298,29 @@ elif mode == "Real-time Translation":
             landmarks = extract_180_landmarks(results)
             if landmarks.shape == (180, 3):
                 st.session_state.landmark_buffer.append(landmarks)
-                # 提取 landmarks
-
                 progress_value = min(len(st.session_state.landmark_buffer) / 195, 1.0)
                 progress_percent = int(progress_value * 100)
                 progress_container.markdown(f"""
-                <div style="width: 300px; height: 18px; background-color: #ddd; border-radius: 9px; overflow: hidden; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2); margin-bottom: 8px;">
-                  <div style="width: {progress_percent}%; height: 100%; background-color: #4CAF50;"></div>
-                </div>
-                <p style="margin:0; font-size: 13px; color: #555;">📸 collected frames：{len(st.session_state.landmark_buffer)} / 195</p>
+                    <div style="width: 300px; height: 18px; background-color: #ddd; border-radius: 9px; overflow: hidden; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2); margin-bottom: 8px;">
+                    <div style="width: {progress_percent}%; height: 100%; background-color: #4CAF50;"></div>
+                    </div>
+                    <p style="margin:0; font-size: 13px; color: #555;">📸 collected frames：{len(st.session_state.landmark_buffer)} / 195</p>
                 """, unsafe_allow_html=True)
-
             else:
                 pass
-                # st.write("⚠️ 当前帧缺失关键点，已跳过")
+                # st.write("⚠️ The current frame is missing key points and has been skipped.")
 
-            gloss = "Collecting..."  # 默认显示
-            # 满 195 帧就预测
-            if len(st.session_state.landmark_buffer) == 195:
+            gloss = "Collecting..."
+            if len(st.session_state.landmark_buffer) == 195: # Predict when it reaches 195 frames.
                 sequence = np.array(st.session_state.landmark_buffer).tolist()
                 url = 'http://127.0.0.1:8000/predict'
-                payload = {
-                    'landmarks': sequence,
-                    'top_n': 1,
-                }
+                payload = {'landmarks': sequence, 'top_n': 1}
                 response = requests.post(url, json=payload)
                 prediction = response.json()
                 if (
-                        "predictions" in prediction and
-                        isinstance(prediction["predictions"], list) and
-                        len(prediction["predictions"]) > 0
+                    "predictions" in prediction and
+                    isinstance(prediction["predictions"], list) and
+                    len(prediction["predictions"]) > 0
                 ):
                     top_pred = prediction["predictions"][0]
                     gloss = top_pred.get("gloss", "UNKNOWN")
@@ -358,85 +331,70 @@ elif mode == "Real-time Translation":
                 else:
                     st.session_state.gloss_history_display.append("UNKNOWN")
                     st.session_state.gloss_history_plain.append("UNKNOWN")
+
                 st.session_state.landmark_buffer = []
                 try:
                     translations = st.session_state.gpt_translator.translate(st.session_state.gloss_history_plain)
-                    # st.write("✅ 翻译返回：", translations)
-                    if translations:
-                        st.session_state.current_translation = translations
+                    # st.write("✅ Translation returned：", translations)
+                    if translations: st.session_state.current_translation = translations
                 except Exception as e:
                     st.session_state.current_translation = f"[translate failed!] {e}"
 
             gloss_sequence = " → ".join(st.session_state.gloss_history_display)
-            gloss_placeholder.markdown(
-                f"""
-                        <div style='
-                            border: 2px solid #4CAF50;
-                            border-radius: 10px;
-                            padding: 15px;
-                            background-color: #f0fff0;
-                            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-                            margin-bottom: 10px;
-                        '>
-                            <h4 style='margin: 0; color: #2e7d32;'>🧾 Predicted Glosses</h4>
-                            <p style='font-size: 20px; font-weight: bold; margin: 5px 0;'>{gloss_sequence}</p>
-                        </div>
-                        """,
-                unsafe_allow_html=True
-            )
-            sentence = st.session_state.get("current_translation", "")
+            gloss_placeholder.markdown(f"""
+                <div style='
+                    border: 2px solid #4CAF50;
+                    border-radius: 10px;
+                    padding: 15px;
+                    background-color: #f0fff0;
+                    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+                    margin-bottom: 10px;
+                '>
+                    <h4 style='margin: 0; color: #2e7d32;'>🧾 Predicted Glosses</h4>
+                    <p style='font-size: 20px; font-weight: bold; margin: 5px 0;'>{gloss_sequence}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
             # Update translation text
-            translation_placeholder.markdown(
-                f"""
-                        <div style="
-                            border: 2px solid #2196F3;
-                            border-radius: 10px;
-                            padding: 15px;
-                            background-color: #e3f2fd;
-                            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-                            margin-top: 20px;
-                        ">
-                            <h5 style="margin-bottom: 10px;">💬 <span style='font-size: 20px;'>Sentence</span></h5>
-                            <div style="font-size:18px; font-family: sans-serif; color: #0d47a1;">{sentence}</div>
-                        </div>
-                        """,
-                unsafe_allow_html=True
-            )
+            sentence = st.session_state.get("current_translation", "") 
+            translation_placeholder.markdown(f"""
+                <div style="
+                    border: 2px solid #2196F3;
+                    border-radius: 10px;
+                    padding: 15px;
+                    background-color: #e3f2fd;
+                    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+                    margin-top: 20px;
+                ">
+                    <h5 style="margin-bottom: 10px;">💬 <span style='font-size: 20px;'>Sentence</span></h5>
+                    <div style="font-size:18px; font-family: sans-serif; color: #0d47a1;">{sentence}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
             if sentence:
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 font_scale = 0.8
                 font_thickness = 2
-                text_color = (255, 255, 255)  # 白色文字
-                bg_color = (0, 0, 0)  # 黑色背景
+                text_color = (255, 255, 255)
+                bg_color = (0, 0, 0)
                 padding = 10
 
-                # 计算文本位置（底部居中）
+                # Translation Return Calculate text position (bottom centre)
                 (text_width, text_height), _ = cv2.getTextSize(sentence, font, font_scale, font_thickness)
                 text_x = int((annotated.shape[1] - text_width) / 2)
                 text_y = annotated.shape[0] - 30
-
-                # 绘制黑色背景框
-                cv2.rectangle(
+                cv2.rectangle( # Draw a black background box
                     annotated,
                     (text_x - padding, text_y - text_height - padding),
                     (text_x + text_width + padding, text_y + padding),
-                    bg_color,
-                    thickness=-1
+                    bg_color, thickness=-1
                 )
-
-                # 绘制文字
-                cv2.putText(
-                    annotated,
-                    sentence,
+                cv2.putText( # Drawing text
+                    annotated, sentence,
                     (text_x, text_y),
-                    font,
-                    font_scale,
-                    text_color,
-                    font_thickness,
+                    font, font_scale, text_color, font_thickness,
                     cv2.LINE_AA
                 )
-            # 显示图像
-            camera_placeholder.image(annotated, channels="BGR", use_container_width=True)
-            # 保持 UI 更新流畅（20fps 左右）
-            time.sleep(0.05)
+            camera_placeholder.image(annotated, channels="BGR", use_container_width=True) # Display image
+            time.sleep(0.05) # Keep the UI updating smoothly (around 20 fps)
         cap.release()

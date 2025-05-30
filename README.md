@@ -273,7 +273,7 @@ graph LR
     style J fill:#FF69B4,stroke:#FF1493
     style K fill:#FF69B4,stroke:#FF1493
 ```
-The Streamlit UI (`streamlit_app.py`) provides a real-time ASL translation interface. It captures webcam input (`cv2.VideoCapture`), extracts landmarks using MediaPipe, fetches top-N gloss predictions via the FastAPI endpoint, and displays translations from the Gloss-to-Text task. The UI renders landmarks (`st.image`), gloss predictions (`st.table`), translations (`st.text`), and user controls (`st.button` for start/stop, `top_n` adjustment).
+The Streamlit UI ([streamlit_app.py](./apps/streamlit_app.py)) provides a real-time ASL translation interface. It captures webcam input (`cv2.VideoCapture`), extracts landmarks using MediaPipe, fetches top-N gloss predictions via the FastAPI endpoint, and displays translations from the Gloss-to-Text task. The UI renders landmarks (`st.image`), gloss predictions (`st.table`), translations (`st.text`), and user controls (`st.button` for start/stop, `top_n` adjustment).
 - **Real-Time Processing**: The UI's ability to process webcam input, extract landmarks, and display translations with <1s latency is a technical feat, enabled by efficient TFLite inference and FastAPI serving.
 - **User-Centric Design**: Displaying landmarks, gloss predictions, and translations in real-time provides transparency, enhancing user trust. User controls for starting/stopping translation and adjusting `top_n` improve interactivity.
 - **Integration**: The seamless integration of webcam input, FastAPI predictions, and Gloss-to-Text translation demonstrates end-to-end system design, with Streamlit ensuring accessibility for deaf users.
